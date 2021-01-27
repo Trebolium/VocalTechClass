@@ -1,0 +1,8 @@
+.DS_Store
+/results
+/spmel
+/submission
+/runs
+*.swp
+*.swo
+*.swn
