@@ -46,6 +46,9 @@ class VoiceTechniqueClassifier:
                 x_data = x_data.to(self.device, dtype=torch.float)
                 y_data = y_data.to(self.device)
 
+                np.save('x_data_numpy', x_data.cpu().detach().numpy())
+                np.save('y_data_numpy', y_data.cpu().detach().numpy())
+
                 prediction = self.model(x_data)
                 loss = nn.functional.cross_entropy(prediction, y_data) 
                 _, predicted = torch.max(prediction.data, 1)

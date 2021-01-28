@@ -41,8 +41,6 @@ kwargs = {'num_workers': 1, 'pin_memory': True} if config.cuda else {}
 seconds = time.time()
 
 results_dir = './results'
-if not os.path.exists(results_dir):
-    os.mkdir(results_dir)
 file_name_dir = './results/' +config.file_name
 if not os.path.exists(file_name_dir):
     os.mkdir(file_name_dir)
