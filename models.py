@@ -20,43 +20,44 @@ class Luo2019AsIs(nn.Module):
         melsteps_per_second = spmel_params['sr'] / spmel_params['hop_size']
         self.window_size = math.ceil(config.chunk_seconds * melsteps_per_second)
 
-#        self.conv_layer1 = nn.Sequential(
-#                nn.Conv1d(self.initial_channels,
-#                            self.inc1Dim,
-#                            kernel_size = self.kernelSize, padding = self.paddingSize),
-#                nn.BatchNorm1d(self.inc1Dim),
-#                nn.ReLU()
-#            )
-#        self.conv_layer2 = nn.Sequential(
-#                nn.Conv1d(self.inc1Dim,
-#                            self.inc1Dim,
-#                            kernel_size = self.kernelSize, padding = self.paddingSize),
-#                nn.BatchNorm1d(self.inc1Dim),
-#                nn.ReLU()
-#            )
-#        self.flat_size = self.window_size * self.inc1Dim
+        self.conv_layer1 = nn.Sequential(
+                nn.Conv1d(96
+                            ,512
+                            ,kernel_size = 3, padding = self.paddingSize)
+                ,nn.BatchNorm1d(512)
+                ,nn.ReLU()
+            )
+        self.conv_layer2 = nn.Sequential(
+                nn.Conv1d(512
+                            ,512
+                            ,kernel_size = 3, padding = self.paddingSize)
+                ,nn.BatchNorm1d(512)
+                ,nn.ReLU()
+            )
+
+        self.flat_size = 44 * 512
 
         """ 1DKernel 2D CNN layers"""
 
-        self.conv_layer1 = nn.Sequential(
-                nn.Conv2d(1
-                            ,512
-                            ,kernel_size = (1,3), padding = (0,1))
-                ,nn.BatchNorm2d(512)
-                ,nn.ReLU()
-                ,nn.MaxPool2d((1,2))
-            )
-        self.conv_layer2 = nn.Sequential(
-                nn.Conv2d(512
-                            ,512
-                            ,kernel_size = (1,3), padding = (0,1))
-                ,nn.BatchNorm2d(512)
-                ,nn.ReLU()
-                ,nn.MaxPool2d((1,2))
-            )
-        
-        self.flat_size = 512 * config.n_mels * int(self.window_size/4)
-        #self.flat_size = 512 * config.n_mels * self.window_size # use this line when no max pooling
+#        self.conv_layer1 = nn.Sequential(
+#                nn.Conv2d(1
+#                            ,512
+#                            ,kernel_size = (1,3), padding = (0,1))
+#                ,nn.BatchNorm2d(512)
+#                ,nn.ReLU()
+#                ,nn.MaxPool2d((1,2))
+#            )
+#        self.conv_layer2 = nn.Sequential(
+#                nn.Conv2d(512
+#                            ,512
+#                            ,kernel_size = (1,3), padding = (0,1))
+#                ,nn.BatchNorm2d(512)
+#                ,nn.ReLU()
+#                ,nn.MaxPool2d((1,2))
+#            )
+#        
+#        self.flat_size = 512 * config.n_mels * int(self.window_size/4)
+#        #self.flat_size = 512 * config.n_mels * self.window_size # use this line when no max pooling
 
         """ 2D Kernel 2DCNN layers"""
 
@@ -92,6 +93,12 @@ class Luo2019AsIs(nn.Module):
             nn.BatchNorm1d(int(self.inc1Dim/2)),
             nn.ReLU()
             )
+        self.fc_layer3 = nn.Sequential(
+            nn.Linear(256
+                        ,16)
+            ,nn.BatchNorm1d(16)
+            ,nn.ReLU()
+            )
 
         """ With BLSMT layers """
 
@@ -113,47 +120,58 @@ class Luo2019AsIs(nn.Module):
         """ Classification Layer """
 
         self.classify_layer = nn.Sequential(
-            nn.Linear(int(self.inc1Dim/2), self.num_classes)
+            nn.Linear(16, self.num_classes)
             ,nn.BatchNorm1d(self.num_classes)
             #,nn.Sigmoid()
             )
 
-    def forward(self, x):
-        # convert x into (batch, self.initial_channels, self.window_size)
-        x = x.transpose(1,2)
-        x = x.unsqueeze(1) # for 2D convolution
-        xc1 = self.conv_layer1(x)
-        xc2 = self.conv_layer2(xc1)
-        flattened_x = xc2.view(xc2.size(0), -1)
-
-        xfc1 = self.fc_layer1(flattened_x)
-        xfc2 = self.fc_layer2(xfc1)
-        prediction = self.classify_layer(xfc2)
-        return prediction
-
-        """If using LSTM"""
-#    def forward(self, x): 
-#        #pdb.set_trace()
+#    def forward(self, x):
+#        # convert x into (batch, self.initial_channels, self.window_size)
 #        x = x.transpose(1,2)
-#        #x = x.unsqueeze(1) # for 2D convolution
-#                                
+#        x = x.unsqueeze(1) # for 2D convolution
 #        xc1 = self.conv_layer1(x)
 #        xc2 = self.conv_layer2(xc1)
-#
-#        xc2_side = xc2.transpose(1,2)
-#        self.lstm.flatten_parameters()
-#        outputs, _ = self.lstm(xc2_side)
-#
-#        #https://discuss.pytorch.org/t/contigious-vs-non-contigious-tensor/30107/2
-#        outputs = outputs.contiguous()
-#        flattened_x = outputs.view(outputs.size(0), -1) 
+#        flattened_x = xc2.view(xc2.size(0), -1)
 #
 #        xfc1 = self.fc_layer1(flattened_x)
 #        xfc2 = self.fc_layer2(xfc1)
-#
-#
 #        prediction = self.classify_layer(xfc2)
 #        return prediction
+
+        """If using LSTM"""
+    def forward(self, x, chunk_num_list): 
+        pdb.set_trace()
+        x = x.transpose(1,2)
+        #x = x.unsqueeze(1) # for 2D convolution
+                                
+        xc1 = self.conv_layer1(x)
+        xc2 = self.conv_layer2(xc1)
+
+        flattened_xc2 = xc2.view(xc2.size(0), -1)
+
+        xfc1 = self.fc_layer1(flattened_xc2)
+        xfc2 = self.fc_layer2(xfc1)
+
+        #collect all chunks of the same example and send them in groups to the BLSTM
+        for i, chunk_size in enumerate(chunk_num_list):
+            all_example_chunks = xfc2[:chunk_size]
+            self.lstm.flatten_parameters()
+            outputs, _ = self.lstm(all_example_chunks)
+            # consolidate batch tensors after lstm
+            if i==0:
+                example_tensors = np.array(outputs)
+            else:
+                example_tensors = np.vstack(example_tensors, np.array(outputs))
+
+        xfc3 = self.fc_layer3(example_tensors)
+
+        #https://discuss.pytorch.org/t/contigious-vs-non-contigious-tensor/30107/2
+        outputs = outputs.contiguous()
+        flattened_x = outputs.view(outputs.size(0), -1) 
+
+
+        prediction = self.classify_layer(xfc2)
+        return prediction
 
 
 class WilkinsAudioCNN(nn.Module):
