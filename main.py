@@ -127,8 +127,8 @@ with open(results_csv, "w") as csvResults:
         test_loader = DataLoader(dataset, batch_size=config.batch_size, sampler=test_sampler, shuffle=False, drop_last=False)
         vt_classer = VoiceTechniqueClassifier(config, spmel_params)
 
-        example_data, example_targets, ex_singer_ids = iter(test_loader).next()
-        writer.add_graph(model, example_data.float())
+        #example_data, example_targets, ex_singer_ids = iter(test_loader).next()
+        #writer.add_graph(model, example_data.float())
 
         if config.load_ckpt != '':
             previous_epochs = int(re.findall('\d+', config.load_ckpt)[0])

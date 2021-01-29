@@ -49,7 +49,7 @@ class pathSpecDataset(Dataset):
         # pick random spmel_chunk with random crop
 
 
-    """old incorrect way of feeding data to network"""
+        """old incorrect way of feeding data to network"""
 ############################################################################
 #
 #        if spmel.shape[0] < self.window_size:
@@ -64,9 +64,10 @@ class pathSpecDataset(Dataset):
 #            spmel_chunk = spmel
 #            #pitch = pitch_info
 # 
+#        return spmel_chunk, style_idx, singer_idx
 ############################################################################
 
-        return spmel_chunk, style_idx, singer_idx
+        return spmel, style_idx, singer_idx
 
     def __len__(self):
         """Return the number of spkrs."""

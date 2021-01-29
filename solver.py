@@ -4,13 +4,15 @@ from torch import optim
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import numpy as np
-import random, pdb
+import random, pdb, math
 
 class VoiceTechniqueClassifier:
     def __init__(self, config, spmel_params):
         """ initialise configurations"""
         self.config = config
         self.device = torch.device(f'cuda:{self.config.which_cuda}' if torch.cuda.is_available() else 'cpu')
+        melsteps_per_second = spmel_params['sr'] / spmel_params['hop_size']
+        window_size = math.ceil(config.chunk_seconds * melsteps_per_second)
 
         if config.is_wilkins == True:
             self.model = models.WilkinsAudioCNN(config)
@@ -49,7 +51,21 @@ class VoiceTechniqueClassifier:
                 np.save('x_data_numpy', x_data.cpu().detach().numpy())
                 np.save('y_data_numpy', y_data.cpu().detach().numpy())
 
-                prediction = self.model(x_data)
+                #######################
+    
+                #Split up each example in subchunks
+                pdb.set_trace()
+                chunk_nums = []
+                fo  example in x_data:
+                    chunk_num = math.ceil(example.shape[0] / window_size)
+                    chunk_nums.append(chunk_num)
+                    for i in range(chunk_num):
+                        offset = i*windowsize
+                        batch = example[offset:offset+window_size]
+
+                ######################
+                tester = [1,2,3]
+                prediction = self.model(x_data, tester)
                 loss = nn.functional.cross_entropy(prediction, y_data) 
                 _, predicted = torch.max(prediction.data, 1)
                 corrects = (predicted == y_data).sum().item()
