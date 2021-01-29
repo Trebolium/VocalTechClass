@@ -47,17 +47,25 @@ class pathSpecDataset(Dataset):
         # spkr_data is literally a list of skpr_id, emb, and utterances from a single speaker
         spmel, style_idx, singer_idx  = dataset[index]
         # pick random spmel_chunk with random crop
-        if spmel.shape[0] < self.window_size:
-            len_pad = self.window_size - spmel.shape[0]
-            spmel_chunk = np.pad(spmel, ((0,len_pad),(0,0)), 'constant')
-            #pitch = np.pad(pitch_info, ((0,len_pad),(0,0)), 'constant')
-        elif spmel.shape[0] > self.window_size:
-            left = np.random.randint(spmel.shape[0]-self.window_size)
-            spmel_chunk = spmel[left:left+self.window_size, :]
-            #pitch = pitch_info[left:left+self.window_size, :]
-        else:
-            spmel_chunk = spmel
-            #pitch = pitch_info
+
+
+    """old incorrect way of feeding data to network"""
+############################################################################
+#
+#        if spmel.shape[0] < self.window_size:
+#            len_pad = self.window_size - spmel.shape[0]
+#            spmel_chunk = np.pad(spmel, ((0,len_pad),(0,0)), 'constant')
+#            #pitch = np.pad(pitch_info, ((0,len_pad),(0,0)), 'constant')
+#        elif spmel.shape[0] > self.window_size:
+#            left = np.random.randint(spmel.shape[0]-self.window_size)
+#            spmel_chunk = spmel[left:left+self.window_size, :]
+#            #pitch = pitch_info[left:left+self.window_size, :]
+#        else:
+#            spmel_chunk = spmel
+#            #pitch = pitch_info
+# 
+############################################################################
+
         return spmel_chunk, style_idx, singer_idx
 
     def __len__(self):
