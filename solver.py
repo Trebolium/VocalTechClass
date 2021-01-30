@@ -69,6 +69,7 @@ class VoiceTechniqueClassifier:
                         else:
                             new_x_data_batch = torch.stack((new_x_data_batch, batch))
                 pdb.set_trace()
+                tester = 3
                 new_x_data_batch = new_x_data_batch.to(self.device, dtype=torch.float)    
                 ######################
                 tester = [1,2,3]
