@@ -66,8 +66,20 @@ class pathSpecDataset(Dataset):
 # 
 #        return spmel_chunk, style_idx, singer_idx
 ############################################################################
+        
+        chunk_num = math.floor(spmel / self.window_size)
+        spmel_mini_batches = []
+        for i in range(chunk_num)
+            offset = i * self.window_size
+#            if offset > (spmel.shape[0] - self.window_size):
+#                len_pad = (offset + self.window_size) - spmel.shape[0]
+#                batch = spmel[offset:]
+#                batch = np.pad(batch, ((0,lenPad),(0,0)), 'constant')
+#            else:
+            batch = spmel[offset : offset+self.window_size]
+            spmel_mini_batches.append(batch)
 
-        return spmel, style_idx, singer_idx
+        return spmel_mini_batches, style_idx, singer_idx
 
     def __len__(self):
         """Return the number of spkrs."""

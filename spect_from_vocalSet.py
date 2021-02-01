@@ -47,7 +47,7 @@ def remove_quiet_edges(src_path, trg_path):
     start_trim = detect_leading_silence(audio_seg)
     end_trim = detect_leading_silence(audio_seg.reverse())
     trimmed_audio_seg = audio_seg[start_trim:duration-end_trim]
-    trimmed_audio_seg.export(trg_path +'/buffer_file.wav', format="wav")
+    trimmed_audio_seg.export('./silence_trimmed_audio.wav', format="wav")
 
 def detect_leading_silence(audio_seg, silence_thresh=-50.0, chunk_size=10):
     # From https://stackoverflow.com/questions/29547218/
@@ -142,7 +142,6 @@ for subdir_idx, subdir in enumerate(sorted(subdirList)):
         for subsubsubdir_idx, subsubsubdir in enumerate(sorted(subsubsubdirList)):
             #subsubsubdir could be technique
             _,_, fileList = next(os.walk(os.path.join(subsubDirName,subsubsubdir)))
-            pdb.set_trace()
             for file_idx, fileName in enumerate(sorted(fileList)):
                 exclusion_found = False
                 # ensure that only mic1 files are processed
@@ -169,8 +168,8 @@ for subdir_idx, subdir in enumerate(sorted(subdirList)):
                         #if fileName == 'f1_arpeggios_vocal_fry_e.wav':
                         #    pdb.set_trace()
                         remove_quiet_edges(path_name, args.trg_data_dir)
-                        pdb.set_trace()
-                        preprocessed_data = preprocess(sf.read('./buffer_file.wav'))
+                        #pdb.set_trace()
+                        preprocessed_data = preprocess(sf.read('./silence_trimmed_audio.wav'))
                         # save spect    
                         np.save(os.path.join(args.trg_data_dir, fileName[:-4]),
                                 preprocessed_data.astype(np.float32), allow_pickle=False)    
