@@ -142,6 +142,7 @@ for subdir_idx, subdir in enumerate(sorted(subdirList)):
         for subsubsubdir_idx, subsubsubdir in enumerate(sorted(subsubsubdirList)):
             #subsubsubdir could be technique
             _,_, fileList = next(os.walk(os.path.join(subsubDirName,subsubsubdir)))
+            pdb.set_trace()
             for file_idx, fileName in enumerate(sorted(fileList)):
                 exclusion_found = False
                 # ensure that only mic1 files are processed
@@ -168,7 +169,7 @@ for subdir_idx, subdir in enumerate(sorted(subdirList)):
                         #if fileName == 'f1_arpeggios_vocal_fry_e.wav':
                         #    pdb.set_trace()
                         remove_quiet_edges(path_name, args.trg_data_dir)
-                        #pdb.set_trace()
+                        pdb.set_trace()
                         preprocessed_data = preprocess(sf.read('./buffer_file.wav'))
                         # save spect    
                         np.save(os.path.join(args.trg_data_dir, fileName[:-4]),
