@@ -8,10 +8,10 @@ from multiprocessing import Process, Manager
 
 class pathSpecDataset(Dataset):
     """Dataset class for using a path to spec folders,
-	path for labels,
-	generates random windowed subspec examples,
-	associated labels,
-	optional conditioning."""
+    path for labels,
+    generates random windowed subspec examples,
+    associated labels,
+    optional conditioning."""
     def __init__(self, config, spmel_params):
         """Initialize and preprocess the dataset."""
         self.spmel_dir = config.data_dir
@@ -66,10 +66,10 @@ class pathSpecDataset(Dataset):
 # 
 #        return spmel_chunk, style_idx, singer_idx
 ############################################################################
-        
-        chunk_num = math.floor(spmel / self.window_size)
+        pdb.set_trace()
+        chunk_num = math.floor(spmel.shape[0] / self.window_size)
         spmel_mini_batches = []
-        for i in range(chunk_num)
+        for i in range(chunk_num):
             offset = i * self.window_size
 #            if offset > (spmel.shape[0] - self.window_size):
 #                len_pad = (offset + self.window_size) - spmel.shape[0]
@@ -78,7 +78,7 @@ class pathSpecDataset(Dataset):
 #            else:
             batch = spmel[offset : offset+self.window_size]
             spmel_mini_batches.append(batch)
-
+        pdb.set_trace()
         return spmel_mini_batches, style_idx, singer_idx
 
     def __len__(self):
