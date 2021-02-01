@@ -54,24 +54,24 @@ class VoiceTechniqueClassifier:
                 #######################
     
                 #Split up each example in subchunks
-                pdb.set_trace()
+                
                 chunk_nums = []
                 for i, example in enumerate(x_data):
                     chunk_num = math.ceil(example.shape[0] / self.window_size)
                     chunk_nums.append(chunk_num)
 
+                new_x_data_batch = []
                 for i in range(len(x_data)):
                     for j in range(chunk_num):
                         offset = j * self.window_size
-                        batch = example[offset : offset+self.window_size]
-                        if i == 0 and j == 0:
-                            new_x_data_batch = batch.unsqueeze(0)
-                        else:
-                            new_x_data_batch = torch.stack((new_x_data_batch, batch))
+                        batch = x_data[j][offset : offset+self.window_size]
+                        new_x_data_batch.append(batch)
+                        pdb.set_trace()
                 pdb.set_trace()
-                tester = 3
                 new_x_data_batch = new_x_data_batch.to(self.device, dtype=torch.float)    
+
                 ######################
+
                 tester = [1,2,3]
                 prediction = self.model(new_x_data_batch, chunk_nums)
                 loss = nn.functional.cross_entropy(prediction, y_data) 
