@@ -40,7 +40,7 @@ def pySTFT(x, fft_size=args.fft_size, hop_size=args.hop_size):
     result = np.fft.rfft(fft_window * result, n=fft_size).T    
     return np.abs(result)    
 
-def remove_quiet_edges(src_path, trg_path):
+def remove_quiet_edges(src_path):
     # From https://stackoverflow.com/questions/29547218/
     audio_seg = AudioSegment.from_file(src_path, format='wav')
     duration = len(audio_seg)
@@ -49,7 +49,7 @@ def remove_quiet_edges(src_path, trg_path):
     trimmed_audio_seg = audio_seg[start_trim:duration-end_trim]
     trimmed_audio_seg.export('./silence_trimmed_audio.wav', format="wav")
 
-def detect_leading_silence(audio_seg, silence_thresh=-50.0, chunk_size=10):
+def detect_leading_silence(audio_seg, silence_thresh=-60.0, chunk_size=10):
     # From https://stackoverflow.com/questions/29547218/
     silence_found = False
     while silence_found == False:
@@ -167,7 +167,7 @@ for subdir_idx, subdir in enumerate(sorted(subdirList)):
                         print('converting: ', path_name)
                         #if fileName == 'f1_arpeggios_vocal_fry_e.wav':
                         #    pdb.set_trace()
-                        remove_quiet_edges(path_name, args.trg_data_dir)
+                        remove_quiet_edges(path_name)
                         #pdb.set_trace()
                         preprocessed_data = preprocess(sf.read('./silence_trimmed_audio.wav'))
                         # save spect    

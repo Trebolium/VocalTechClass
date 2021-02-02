@@ -48,32 +48,18 @@ class VoiceTechniqueClassifier:
                 x_data = x_data.to(self.device, dtype=torch.float)
                 y_data = y_data.to(self.device)
 
-                np.save('x_data_numpy', x_data.cpu().detach().numpy())
+
+                #tensors must be reshaped so that they have 3 dims
+                for i, batch in enumerate(x_data):
+                    if i == 0:
+                        reshaped_batches = batch
+                    else:
+                        reshaped_batches = torch.cat((reshaped_batches, batch))
+                
+                np.save('x_data_numpy', reshaped_batches.cpu().detach().numpy())
                 np.save('y_data_numpy', y_data.cpu().detach().numpy())
 
-                #######################
-    
-                #Split up each example in subchunks
-                
-                chunk_nums = []
-                for i, example in enumerate(x_data):
-                    chunk_num = math.ceil(example.shape[0] / self.window_size)
-                    chunk_nums.append(chunk_num)
-
-                new_x_data_batch = []
-                for i in range(len(x_data)):
-                    for j in range(chunk_num):
-                        offset = j * self.window_size
-                        batch = x_data[j][offset : offset+self.window_size]
-                        new_x_data_batch.append(batch)
-                        pdb.set_trace()
-                pdb.set_trace()
-                new_x_data_batch = new_x_data_batch.to(self.device, dtype=torch.float)    
-
-                ######################
-
-                tester = [1,2,3]
-                prediction = self.model(new_x_data_batch, chunk_nums)
+                prediction = self.model(reshaped_batches)
                 loss = nn.functional.cross_entropy(prediction, y_data) 
                 _, predicted = torch.max(prediction.data, 1)
                 corrects = (predicted == y_data).sum().item()

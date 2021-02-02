@@ -66,20 +66,23 @@ class pathSpecDataset(Dataset):
 # 
 #        return spmel_chunk, style_idx, singer_idx
 ############################################################################
-        pdb.set_trace()
-        chunk_num = math.floor(spmel.shape[0] / self.window_size)
-        spmel_mini_batches = []
+        chunk_num = 6
+        difference = spmel.shape[0] - (self.window_size * chunk_num)
+        left_offset = random.randint(0, difference)
+        random_spmel_chunk = spmel[left_offset:]
+        # may need to set chunk_num to constant value so that all tensor sizes are of known shape for the LSTM
+        # a constant will also mean it is easier to group off to be part of the same recording
+        # the smallest is 301 frames. If the window sizes are 44, then that 6 full windows each
         for i in range(chunk_num):
             offset = i * self.window_size
-#            if offset > (spmel.shape[0] - self.window_size):
-#                len_pad = (offset + self.window_size) - spmel.shape[0]
-#                batch = spmel[offset:]
-#                batch = np.pad(batch, ((0,lenPad),(0,0)), 'constant')
-#            else:
-            batch = spmel[offset : offset+self.window_size]
-            spmel_mini_batches.append(batch)
-        pdb.set_trace()
-        return spmel_mini_batches, style_idx, singer_idx
+            if i == 0:
+                cat_batch = random_spmel_chunk[offset : offset+self.window_size]
+                cat_batch = np.expand_dims(cat_batch, 0)
+            else:
+                tmp = random_spmel_chunk[offset : offset+self.window_size]
+                tmp = np.expand_dims(tmp, 0)
+                cat_batch = np.concatenate((cat_batch, tmp), 0)
+        return cat_batch, style_idx, singer_idx
 
     def __len__(self):
         """Return the number of spkrs."""

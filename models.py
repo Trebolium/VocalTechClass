@@ -11,7 +11,8 @@ class Luo2019AsIs(nn.Module):
     def __init__(self, config, spmel_params):
         super().__init__()
         """ 1DKernel 1D CNN layers"""
-
+        self.num_chunks = 6
+        self.batch_size = config.batch_size
         self.kernelSize = 3
         self.paddingSize = int(math.ceil((self.kernelSize-1)/2))
         self.initial_channels = config.n_mels
@@ -82,19 +83,21 @@ class Luo2019AsIs(nn.Module):
         """ Dense Layers """
 
         self.fc_layer1 = nn.Sequential(
-            nn.Linear(self.flat_size,
-                        self.inc1Dim),
-            nn.BatchNorm1d(self.inc1Dim),
-            nn.ReLU()
+            nn.Linear(self.flat_size
+                        ,512)
+            ,nn.BatchNorm1d(512)
+            ,nn.ReLU()
             )
         self.fc_layer2 = nn.Sequential(
-            nn.Linear(self.inc1Dim,
-                        int(self.inc1Dim/2)),
-            nn.BatchNorm1d(int(self.inc1Dim/2)),
-            nn.ReLU()
+            nn.Linear(512
+                        ,256)
+            ,nn.BatchNorm1d(256)
+            ,nn.ReLU()
             )
+
+        fc_layer3_dim = 256 * 2 * self.num_chunks
         self.fc_layer3 = nn.Sequential(
-            nn.Linear(256
+            nn.Linear(fc_layer3_dim
                         ,16)
             ,nn.BatchNorm1d(16)
             ,nn.ReLU()
@@ -102,7 +105,8 @@ class Luo2019AsIs(nn.Module):
 
         """ With BLSMT layers """
 
-#        self.lstm = nn.LSTM(512, 512, 2, batch_first=True, bidirectional=True)
+        self.lstm = nn.LSTM(256, 256, 2, batch_first=True, bidirectional=True)
+
 #
 #        self.fc_layer1 = nn.Sequential(
 #            nn.Linear(512*2*44,
@@ -139,38 +143,50 @@ class Luo2019AsIs(nn.Module):
 #        return prediction
 
         """If using LSTM"""
-    def forward(self, x, chunk_num_list): 
-        pdb.set_trace()
-        x = x.transpose(1,2)
+    def forward(self, x): 
+        #pdb.set_trace()
+        x = x.transpose(-1,-2)
         #x = x.unsqueeze(1) # for 2D convolution
                                 
         xc1 = self.conv_layer1(x)
         xc2 = self.conv_layer2(xc1)
+        
+        # separate tensor into example groups
+        grouped_by_recording = []
+        if xc2.shape[0] != 384:
+            pdb.set_trace()
+        for i in range(self.batch_size):
+            offset = i * self.num_chunks
+            example_batch = xc2[offset : offset + self.num_chunks]
+            grouped_by_recording.append(example_batch)
+        # this block produces separately calculated dense layers that are concatenated together at the end
+        pdb.set_trace()
+        for i, recording in enumerate(grouped_by_recording):
+            if recording.shape[0] == 0:
+                pdb.set_trace()
+            flattened_xc2 = recording.view(recording.size(0), -1)
+            xfc1 = self.fc_layer1(flattened_xc2)
+            xfc2 = self.fc_layer2(xfc1)
+            if i == 0:
+                dense_by_recording = xfc2.unsqueeze(0)
+            else:
+                dense_by_recording = torch.cat((dense_by_recording, xfc2.unsqueeze(0)))
 
-        flattened_xc2 = xc2.view(xc2.size(0), -1)
-
-        xfc1 = self.fc_layer1(flattened_xc2)
-        xfc2 = self.fc_layer2(xfc1)
+#        flattened_xc2 = xc2.view(xc2.size(0), -1)
+#
+#        xfc1 = self.fc_layer1(flattened_xc2)
+#        xfc2 = self.fc_layer2(xfc1)
 
         #collect all chunks of the same example and send them in groups to the BLSTM
-        for i, chunk_size in enumerate(chunk_num_list):
-            all_example_chunks = xfc2[:chunk_size]
-            self.lstm.flatten_parameters()
-            outputs, _ = self.lstm(all_example_chunks)
-            # consolidate batch tensors after lstm
-            if i==0:
-                example_tensors = np.array(outputs)
-            else:
-                example_tensors = np.vstack(example_tensors, np.array(outputs))
 
-        xfc3 = self.fc_layer3(example_tensors)
-
+        self.lstm.flatten_parameters()
+        lstm_outs, _ = self.lstm(dense_by_recording)
         #https://discuss.pytorch.org/t/contigious-vs-non-contigious-tensor/30107/2
-        outputs = outputs.contiguous()
-        flattened_x = outputs.view(outputs.size(0), -1) 
+        lstm_outs = lstm_outs.contiguous()
+        flattened_lstm_outs = lstm_outs.view(lstm_outs.size(0), -1)
 
-
-        prediction = self.classify_layer(xfc2)
+        xfc3 = self.fc_layer3(flattened_lstm_outs)
+        prediction = self.classify_layer(xfc3)
         return prediction
 
 
