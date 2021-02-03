@@ -33,8 +33,8 @@ parser.add_argument('--n_mels', type=int, default=96, metavar='N')
 parser.add_argument('--file_name', type=str, default='defaultName', metavar='N')
 parser.add_argument('--data_dir', type=str, default='./spmel_desilenced', metavar='N')
 config = parser.parse_args()
-config.cuda = not config.no_cuda and torch.cuda.is_available()
 
+config.cuda = not config.no_cuda and torch.cuda.is_available()
 torch.manual_seed(1)
 device = torch.device(f"cuda:{config.which_cuda}" if config.cuda else "cpu")
 kwargs = {'num_workers': 1, 'pin_memory': True} if config.cuda else {}
