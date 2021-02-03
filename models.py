@@ -153,24 +153,23 @@ class Luo2019AsIs(nn.Module):
         
         # separate tensor into example groups
         grouped_by_recording = []
-        if xc2.shape[0] != 384:
-            pdb.set_trace()
-        for i in range(self.batch_size):
+        num_examples = int(xc2.shape[0]/self.num_chunks)
+        for i in range(num_examples):
             offset = i * self.num_chunks
             example_batch = xc2[offset : offset + self.num_chunks]
             grouped_by_recording.append(example_batch)
         # this block produces separately calculated dense layers that are concatenated together at the end
-        pdb.set_trace()
         for i, recording in enumerate(grouped_by_recording):
-            if recording.shape[0] == 0:
-                pdb.set_trace()
-            flattened_xc2 = recording.view(recording.size(0), -1)
-            xfc1 = self.fc_layer1(flattened_xc2)
-            xfc2 = self.fc_layer2(xfc1)
-            if i == 0:
-                dense_by_recording = xfc2.unsqueeze(0)
-            else:
-                dense_by_recording = torch.cat((dense_by_recording, xfc2.unsqueeze(0)))
+#            if xc2.shape[0] != self.batch_size * self.num_chunks and i == 49:
+#                pdb.set_trace()
+            if recording.shape[0] == self.num_chunks:
+                flattened_xc2 = recording.view(recording.size(0), -1)
+                xfc1 = self.fc_layer1(flattened_xc2)
+                xfc2 = self.fc_layer2(xfc1)
+                if i == 0:
+                    dense_by_recording = xfc2.unsqueeze(0)
+                else:
+                    dense_by_recording = torch.cat((dense_by_recording, xfc2.unsqueeze(0)))
 
 #        flattened_xc2 = xc2.view(xc2.size(0), -1)
 #
@@ -178,7 +177,6 @@ class Luo2019AsIs(nn.Module):
 #        xfc2 = self.fc_layer2(xfc1)
 
         #collect all chunks of the same example and send them in groups to the BLSTM
-
         self.lstm.flatten_parameters()
         lstm_outs, _ = self.lstm(dense_by_recording)
         #https://discuss.pytorch.org/t/contigious-vs-non-contigious-tensor/30107/2
