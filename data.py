@@ -67,22 +67,20 @@ class pathSpecDataset(Dataset):
 #        return spmel_chunk, style_idx, singer_idx
 ############################################################################
         chunk_num = 6
+        #chunk_num = math.floor(spmel.shape[0] / self.window_size)
         difference = spmel.shape[0] - (self.window_size * chunk_num)
         left_offset = random.randint(0, difference)
         random_spmel_chunk = spmel[left_offset:]
-        # may need to set chunk_num to constant value so that all tensor sizes are of known shape for the LSTM
-        # a constant will also mean it is easier to group off to be part of the same recording
-        # the smallest is 301 frames. If the window sizes are 44, then that 6 full windows each
         for i in range(chunk_num):
             offset = i * self.window_size
             if i == 0:
-                cat_batch = random_spmel_chunk[offset : offset+self.window_size]
-                cat_batch = np.expand_dims(cat_batch, 0)
+                cat_chunks = random_spmel_chunk[offset : offset+self.window_size]
+                cat_chunks = np.expand_dims(cat_chunks, 0)
             else:
                 tmp = random_spmel_chunk[offset : offset+self.window_size]
                 tmp = np.expand_dims(tmp, 0)
-                cat_batch = np.concatenate((cat_batch, tmp), 0)
-        return cat_batch, style_idx, singer_idx
+                cat_chunks = np.concatenate((cat_chunks, tmp), 0)
+        return cat_chunks, style_idx, singer_idx
 
     def __len__(self):
         """Return the number of spkrs."""

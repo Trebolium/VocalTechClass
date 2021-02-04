@@ -15,7 +15,7 @@ def str2bool(v):
 
 parser = argparse.ArgumentParser()
 # metavar argument is for the actual name of the variable, in case the optional argument (eg. --batch-size) is not informative enough
-parser.add_argument('--batch_size', type=int, default=64, metavar='N', help='input batch size for training (default: 4)')
+parser.add_argument('--batch_size', type=int, default=128, metavar='N', help='input batch size for training (default: 4)')
 parser.add_argument('--epochs', type=int, default=1, metavar='N', help='number of epochs to train (default: 10)')
 parser.add_argument('--no_cuda', action='store_true', default=False, help='enables CUDA training')
 parser.add_argument('--short', type=str2bool, default=False, help='adjust code to work with Wilkins model and audio not spectrograms')
@@ -126,8 +126,8 @@ with open(results_csv, "w") as csvResults:
         """https://stackoverflow.com/questions/50544730/how-do-i-split-a-custom-dataset-into-training-and-test-datasets"""
         train_sampler = SubsetRandomSampler(train_indices_list) 
         test_sampler = SubsetRandomSampler(test_indices_list)   
-        train_loader = DataLoader(dataset, batch_size=config.batch_size, sampler=train_sampler, shuffle=False, drop_last=False)
-        test_loader = DataLoader(dataset, batch_size=config.batch_size, sampler=test_sampler, shuffle=False, drop_last=False)
+        train_loader = DataLoader(dataset, batch_size=1, sampler=train_sampler, shuffle=False, drop_last=False)
+        test_loader = DataLoader(dataset, batch_size=1, sampler=test_sampler, shuffle=False, drop_last=False)
         vt_classer = VoiceTechniqueClassifier(config, spmel_params)
 
         #example_data, example_targets, ex_singer_ids = iter(test_loader).next()

@@ -99,7 +99,7 @@ class Luo2019AsIs(nn.Module):
         self.fc_layer3 = nn.Sequential(
             nn.Linear(fc_layer3_dim
                         ,16)
-            ,nn.BatchNorm1d(16)
+#            ,nn.BatchNorm1d(16)
             ,nn.ReLU()
             )
 
@@ -125,7 +125,7 @@ class Luo2019AsIs(nn.Module):
 
         self.classify_layer = nn.Sequential(
             nn.Linear(16, self.num_classes)
-            ,nn.BatchNorm1d(self.num_classes)
+#            ,nn.BatchNorm1d(self.num_classes)
             #,nn.Sigmoid()
             )
 
