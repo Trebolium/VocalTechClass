@@ -17,7 +17,7 @@ class pathSpecDataset(Dataset):
         self.spmel_dir = config.data_dir
         melsteps_per_second = spmel_params['sr'] / spmel_params['hop_size']
         self.window_size = math.ceil(config.chunk_seconds * melsteps_per_second)
-        
+        self.chunk_num = config.chunk_num
         style_names = ['belt','lip_trill','straight','vocal_fry','vibrato','breathy']
         singer_names = ['m1_','m2_','m3_','m4_','m5_','m6_','m7_','m8_','m9_','m10_','m11_','f1_','f2_','f3_','f4_','f5_','f6_','f7_','f8_','f9_']
         #self.one_hot_array = np.eye(len(class_names))[np.arange(len(class_names))]
@@ -66,18 +66,25 @@ class pathSpecDataset(Dataset):
 # 
 #        return spmel_chunk, style_idx, singer_idx
 ############################################################################
-        chunk_num = 6
-        #chunk_num = math.floor(spmel.shape[0] / self.window_size)
-        difference = spmel.shape[0] - (self.window_size * chunk_num)
-        left_offset = random.randint(0, difference)
-        random_spmel_chunk = spmel[left_offset:]
+        """Ensure all spmels are the length of (self.window_size * chunk_num)"""
+        chunk_num = self.chunk_num
+        desired_spmel_length = (self.window_size * chunk_num)
+        difference = spmel.shape[0] - desired_spmel_length
+        if difference >= 0:
+            offset = random.randint(0, difference)
+            length_adjusted_spmel = spmel[offset : offset + desired_spmel_length]
+        else:
+            length_adjusted_spmel = np.pad(spmel, ((0,abs(difference)),(0,0)), 'constant')
+        # may need to set chunk_num to constant value so that all tensor sizes are of known shape for the LSTM
+        # a constant will also mean it is easier to group off to be part of the same recording
+        # the smallest is 301 frames. If the window sizes are 44, then that 6 full windows each
         for i in range(chunk_num):
             offset = i * self.window_size
             if i == 0:
-                cat_chunks = random_spmel_chunk[offset : offset+self.window_size]
-                cat_chunks = np.expand_dims(cat_chunks, 0)
+                cat_batch = length_adjusted_spmel[offset : offset+self.window_size]
+                cat_batch = np.expand_dims(cat_batch, 0)
             else:
-                tmp = random_spmel_chunk[offset : offset+self.window_size]
+                tmp = length_adjusted_spmel[offset : offset+self.window_size]
                 tmp = np.expand_dims(tmp, 0)
                 cat_chunks = np.concatenate((cat_chunks, tmp), 0)
         return cat_chunks, style_idx, singer_idx
