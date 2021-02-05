@@ -43,55 +43,51 @@ class VoiceTechniqueClassifier:
             print(f'=====> {split_name}: ')
             accum_loss = 0
             accum_corrects = 0
-            batch_loss_sum = 0
             for batch_num, (x_data, y_data, singer_id)  in enumerate(loader):
 
                 x_data = x_data.to(self.device, dtype=torch.float)
                 y_data = y_data.to(self.device)
 
+
                 #tensors must be reshaped so that they have 3 dims
-#                for i, batch in enumerate(x_data):
-#                    if i == 0:
-#                        reshaped_batches = batch
-#                    else:
-#                        reshaped_batches = torch.cat((reshaped_batches, batch))
-                reshaped_batches = x_data.squeeze(0)                
+                for i, batch in enumerate(x_data):
+                    if i == 0:
+                        reshaped_batches = batch
+                    else:
+                        reshaped_batches = torch.cat((reshaped_batches, batch))
+                
                 np.save('x_data_numpy', reshaped_batches.cpu().detach().numpy())
                 np.save('y_data_numpy', y_data.cpu().detach().numpy())
 
-                #pdb.set_trace()
                 prediction = self.model(reshaped_batches)
                 loss = nn.functional.cross_entropy(prediction, y_data) 
-                batch_loss_sum += loss
                 _, predicted = torch.max(prediction.data, 1)
                 corrects = (predicted == y_data).sum().item()
                 accum_corrects += corrects
                 accuracy = corrects / y_data.shape[0]
                 accum_loss += loss.item()
 
-                if batch_num != 0 and batch_num % self.config.batch_size == 0:
-                    if mode == 'train':
-                        loss = batch_loss_sum / self.config.batch_size
-                        self.optimizer.zero_grad()
-                        loss.backward()
-                        self.optimizer.step()
-                        batch_loss_sum = 0
-                    print('Epoch {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tAcc: {:.6f}'.format(
-                        # inaccurate reading here if on last batch and drop_last=False
-                        epoch,
-                        batch_num,
-                        examples_per_epoch,
-                        100. * batch_num / len(loader),
-                        loss.item(),
-                        accuracy)) # calculates average loss per example
+                if mode == 'train':
+                    self.optimizer.zero_grad()
+                    loss.backward()
+                    self.optimizer.step()
 
-                    y_data = np.expand_dims(y_data.cpu(),1)
-                    singer_id = np.expand_dims(singer_id.cpu(),1)
-                    if batch_num == self.config.batch_size:
-                        labels = np.hstack((y_data,singer_id))
-                    else:
-                        tmp =  np.hstack((y_data,singer_id)) 
-                        labels = np.vstack((labels, tmp))
+                print('Epoch {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tAcc: {:.6f}'.format(
+                    # inaccurate reading here if on last batch and drop_last=False
+                    epoch,
+                    batch_num * self.config.batch_size,
+                    examples_per_epoch,
+                    100. * batch_num / len(loader),
+                    loss.item(),
+                    accuracy)) # calculates average loss per example
+
+                y_data = np.expand_dims(y_data.cpu(),1)
+                singer_id = np.expand_dims(singer_id.cpu(),1)
+                if batch_num == 0:
+                    labels = np.hstack((y_data,singer_id))
+                else:
+                    tmp =  np.hstack((y_data,singer_id)) 
+                    labels = np.vstack((labels, tmp))
 
             return labels, accum_loss, accum_corrects
         
