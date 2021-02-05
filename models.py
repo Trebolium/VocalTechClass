@@ -11,7 +11,7 @@ class Luo2019AsIs(nn.Module):
     def __init__(self, config, spmel_params):
         super().__init__()
         """ 1DKernel 1D CNN layers"""
-        self.num_chunks = 6
+        self.chunk_num = config.chunk_num
         self.batch_size = config.batch_size
         self.kernelSize = 3
         self.paddingSize = int(math.ceil((self.kernelSize-1)/2))
@@ -95,7 +95,7 @@ class Luo2019AsIs(nn.Module):
             ,nn.ReLU()
             )
 
-        fc_layer3_dim = 256 * 2 * self.num_chunks
+        fc_layer3_dim = 256 * 2 * self.chunk_num
         self.fc_layer3 = nn.Sequential(
             nn.Linear(fc_layer3_dim
                         ,16)
@@ -153,16 +153,16 @@ class Luo2019AsIs(nn.Module):
         
         # separate tensor into example groups
         grouped_by_recording = []
-        num_examples = int(xc2.shape[0]/self.num_chunks)
+        num_examples = int(xc2.shape[0]/self.chunk_num)
         for i in range(num_examples):
-            offset = i * self.num_chunks
-            example_batch = xc2[offset : offset + self.num_chunks]
+            offset = i * self.chunk_num
+            example_batch = xc2[offset : offset + self.chunk_num]
             grouped_by_recording.append(example_batch)
         # this block produces separately calculated dense layers that are concatenated together at the end
         for i, recording in enumerate(grouped_by_recording):
-#            if xc2.shape[0] != self.batch_size * self.num_chunks and i == 49:
+#            if xc2.shape[0] != self.batch_size * self.chunk_num and i == 49:
 #                pdb.set_trace()
-            if recording.shape[0] == self.num_chunks:
+            if recording.shape[0] == self.chunk_num:
                 flattened_xc2 = recording.view(recording.size(0), -1)
                 xfc1 = self.fc_layer1(flattened_xc2)
                 xfc2 = self.fc_layer2(xfc1)
