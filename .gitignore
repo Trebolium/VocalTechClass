@@ -3,7 +3,9 @@
 /spmel
 /submission
 /runs
+/__pycache__
 *.swp
 *.swo
 *.swn
 *_data_numpy*
+*.pyc

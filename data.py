@@ -86,8 +86,8 @@ class pathSpecDataset(Dataset):
             else:
                 tmp = length_adjusted_spmel[offset : offset+self.window_size]
                 tmp = np.expand_dims(tmp, 0)
-                cat_chunks = np.concatenate((cat_chunks, tmp), 0)
-        return cat_chunks, style_idx, singer_idx
+                cat_batch = np.concatenate((cat_batch, tmp), 0)
+        return cat_batch, style_idx, singer_idx
 
     def __len__(self):
         """Return the number of spkrs."""

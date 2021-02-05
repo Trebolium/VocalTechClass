@@ -129,8 +129,8 @@ with open(results_csv, "w") as csvResults:
         """https://stackoverflow.com/questions/50544730/how-do-i-split-a-custom-dataset-into-training-and-test-datasets"""
         train_sampler = SubsetRandomSampler(train_indices_list) 
         test_sampler = SubsetRandomSampler(test_indices_list)   
-        train_loader = DataLoader(dataset, batch_size=1, sampler=train_sampler, shuffle=False, drop_last=False)
-        test_loader = DataLoader(dataset, batch_size=1, sampler=test_sampler, shuffle=False, drop_last=False)
+        train_loader = DataLoader(dataset, batch_size=config.batch_size, sampler=train_sampler, shuffle=False, drop_last=False)
+        test_loader = DataLoader(dataset, batch_size=config.batch_size, sampler=test_sampler, shuffle=False, drop_last=False)
         vt_classer = VoiceTechniqueClassifier(config, spmel_params)
 
         #example_data, example_targets, ex_singer_ids = iter(test_loader).next()
