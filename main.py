@@ -36,7 +36,7 @@ parser.add_argument('--load_ckpt', type=str, default='', metavar='N')
 parser.add_argument('--reg', type=float, default=0, metavar='N')
 parser.add_argument('--iteration', type=int, default=1, metavar='N')
 parser.add_argument('--n_mels', type=int, default=96, metavar='N')
-parser.add_argument('--data_dir', type=str, default='./spmel_desilenced', metavar='N')
+parser.add_argument('--data_dir', type=str, default='./spmel_desilenced_normalized', metavar='N')
 parser.add_argument('--test_list', type=str, default='', metavar='N')
 config = parser.parse_args()
 

@@ -48,18 +48,19 @@ class VoiceTechniqueClassifier:
                 x_data = x_data.to(self.device, dtype=torch.float)
                 y_data = y_data.to(self.device)
 
-
-                #tensors must be reshaped so that they have 3 dims
-                for i, batch in enumerate(x_data):
-                    if i == 0:
-                        reshaped_batches = batch
-                    else:
-                        reshaped_batches = torch.cat((reshaped_batches, batch))
-                
-                np.save('x_data_numpy', reshaped_batches.cpu().detach().numpy())
+                if self.config.is_wilkins == False:
+                    #tensors must be reshaped so that they have 3 dims
+                    for i, batch in enumerate(x_data):
+                        if i == 0:
+                            reshaped_batches = batch
+                        else:
+                            reshaped_batches = torch.cat((reshaped_batches, batch))
+                    x_data = reshaped_batches
+                     
+                np.save('x_data_numpy', x_data.cpu().detach().numpy())
                 np.save('y_data_numpy', y_data.cpu().detach().numpy())
 
-                prediction = self.model(reshaped_batches)
+                prediction = self.model(x_data)
                 loss = nn.functional.cross_entropy(prediction, y_data) 
                 _, predicted = torch.max(prediction.data, 1)
                 corrects = (predicted == y_data).sum().item()
@@ -89,7 +90,6 @@ class VoiceTechniqueClassifier:
                     tmp =  np.hstack((y_data,singer_id)) 
                     labels = np.vstack((labels, tmp))
                 if epoch > 98:
-                    pdb.set_trace() 
             return labels, accum_loss, accum_corrects
         
         if mode == 'train':

@@ -120,6 +120,7 @@ beltCount = trillCount = straightCount = fryCount = vibratoCount = breathyCount 
 class_counter_list = [beltCount, trillCount, straightCount, fryCount, vibratoCount, breathyCount]
 class_list=['belt','lip_trill','straight','vocal_fry','vibrato','breathy']
 exclude_list = ['caro','row','long','dona']
+audio_path_list = []
 
 for subdir_idx, subdir in enumerate(sorted(subdirList)):
     #print(subdir)
@@ -165,6 +166,7 @@ for subdir_idx, subdir in enumerate(sorted(subdirList)):
                         """Now that directories have been navigated and files have been filtered, do processing """
                         # Read audio file
                         path_name = os.path.join(dirName, subdir, subsubdir, subsubsubdir, fileName)
+                        audio_path_list.append(path_name)
                         print('converting: ', path_name)
                         #if fileName == 'f1_arpeggios_vocal_fry_e.wav':
                         #    pdb.set_trace()
@@ -183,8 +185,8 @@ for subdir_idx, subdir in enumerate(sorted(subdirList)):
             #                break
                         file_counter += 1
 
-#with open('./spkr_id_var_std_mean.pkl', 'wb') as handle:
-    #pickle.dump(spkr_mean_stats, handle)
+with open('./audio_path_list.pkl', 'wb') as handle:
+    pickle.dump(audio_path_list, handle)
 
 
 print('time taken', time.time()-start_time)
