@@ -89,7 +89,7 @@ class VoiceTechniqueClassifier:
                 else:
                     tmp =  np.hstack((y_data,singer_id)) 
                     labels = np.vstack((labels, tmp))
-                if epoch > 98:
+
             return labels, accum_loss, accum_corrects
         
         if mode == 'train':
