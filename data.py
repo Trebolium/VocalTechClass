@@ -70,11 +70,8 @@ class pathSpecDataset(Dataset):
         chunk_num = self.chunk_num
         desired_spmel_length = (self.window_size * chunk_num)
         difference = spmel.shape[0] - desired_spmel_length
-        if difference >= 0:
-            offset = random.randint(0, difference)
-            length_adjusted_spmel = spmel[offset : offset + desired_spmel_length]
-        else:
-            length_adjusted_spmel = np.pad(spmel, ((0,abs(difference)),(0,0)), 'constant')
+        offset = random.randint(0, difference)
+        length_adjusted_spmel = spmel[offset : offset + desired_spmel_length]
         # may need to set chunk_num to constant value so that all tensor sizes are of known shape for the LSTM
         # a constant will also mean it is easier to group off to be part of the same recording
         # the smallest is 301 frames. If the window sizes are 44, then that 6 full windows each

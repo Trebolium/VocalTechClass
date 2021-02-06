@@ -88,7 +88,8 @@ class VoiceTechniqueClassifier:
                 else:
                     tmp =  np.hstack((y_data,singer_id)) 
                     labels = np.vstack((labels, tmp))
-
+                if epoch > 98:
+                    pdb.set_trace() 
             return labels, accum_loss, accum_corrects
         
         if mode == 'train':
@@ -104,18 +105,17 @@ class VoiceTechniqueClassifier:
             split_name = 'test'
             with torch.no_grad():
                 labels, accum_loss, accum_corrects = batch_iterate()
-
         epoch_loss = accum_loss / len(loader)
         epoch_accuracy = accum_corrects / examples_per_epoch
         if self.config.is_wilkins:
-            writer.add_scalar(f"Number Correct/{split_name}", accum_corrects, epoch)
+            #writer.add_scalar(f"Number Correct/{split_name}", accum_corrects, epoch)
             writer.add_scalar(f"Accuracy/{split_name}", epoch_accuracy, epoch)
             writer.add_scalar(f"Loss/{split_name}", epoch_loss, epoch)
             writer.add_histogram(f"layer_seq1.bias", self.model.layer_seq1[0].bias, epoch)
             writer.add_histogram(f"layer_seq1.weight", self.model.layer_seq1[0].weight, epoch)
             writer.add_histogram(f"layer_seq1.weight.grad", self.model.layer_seq1[0].weight.grad, epoch) 
         else:
-            writer.add_scalar(f"Number Correct/{split_name}", accum_corrects, epoch)
+            #writer.add_scalar(f"Number Correct/{split_name}", accum_corrects, epoch)
             writer.add_scalar(f"Accuracy/{split_name}", epoch_accuracy, epoch)
             writer.add_scalar(f"Loss/{split_name}", epoch_loss, epoch)
 #            writer.add_histogram(f"enc_convs_conv_layer1", self.model.enc_convs[0][0].bias, epoch)

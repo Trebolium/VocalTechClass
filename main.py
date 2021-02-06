@@ -1,4 +1,5 @@
 import models
+from datetime import datetime
 from utils import saveHistory
 from solver import VoiceTechniqueClassifier
 from data import pathSpecDataset, audioSnippetDataset
@@ -15,24 +16,28 @@ def str2bool(v):
 
 parser = argparse.ArgumentParser()
 # metavar argument is for the actual name of the variable, in case the optional argument (eg. --batch-size) is not informative enough
+parser.add_argument('--file_name', type=str, default='defaultName', metavar='N')
 parser.add_argument('--batch_size', type=int, default=128, metavar='N', help='input batch size for training (default: 4)')
-parser.add_argument('--epochs', type=int, default=100, metavar='N', help='number of epochs to train (default: 10)')
-parser.add_argument('--no_cuda', action='store_true', default=False, help='enables CUDA training')
-parser.add_argument('--short', type=str2bool, default=False, help='adjust code to work with Wilkins model and audio not spectrograms')
-parser.add_argument('--is_wilkins', type=str2bool, default=False, help='adjust code to work with Wilkins model and audio not spectrograms')
+parser.add_argument('--lstm_num', type=int, default=2, metavar='N', help='2 if not specified')
+parser.add_argument('--is_blstm', type=str2bool, default=True, help='')
 parser.add_argument('--chunk_num', type=int, default=23, metavar='N', help='chunk_seconds is 23 if not specified')
-parser.add_argument('--chunk_seconds', type=float, default=0.5, metavar='N', help='chunk_seconds is 23 if not specified')
-parser.add_argument('--model', type=str, metavar='N', default='Luo2019AsIs', help='define the name of the model to be used')
 parser.add_argument('--which_cuda', type=int, default=0, metavar='N')
+parser.add_argument('--epochs', type=int, default=100, metavar='N', help='number of epochs to train (default: 10)')
+parser.add_argument('--lr', type=float, default=0.0001, metavar='N')
+
+parser.add_argument('--short', type=str2bool, default=False, help='adjust code to work with Wilkins model and audio not spectrograms')
+parser.add_argument('--no_cuda', action='store_true', default=False, help='enables CUDA training')
+parser.add_argument('--is_wilkins', type=str2bool, default=False, help='adjust code to work with Wilkins model and audio not spectrograms')
+parser.add_argument('--chunk_seconds', type=float, default=0.5, metavar='N', help='chunk_seconds is 0.5 if not specified')
+parser.add_argument('--model', type=str, metavar='N', default='Luo2019AsIs', help='define the name of the model to be used')
 parser.add_argument('--dropout', type=float, default=0.4, metavar='N')
 parser.add_argument('--ckpt_freq', type=int, default=100, metavar='N')
 parser.add_argument('--load_ckpt', type=str, default='', metavar='N')
 parser.add_argument('--reg', type=float, default=0, metavar='N')
-parser.add_argument('--lr', type=float, default=0.0001, metavar='N')
 parser.add_argument('--iteration', type=int, default=1, metavar='N')
 parser.add_argument('--n_mels', type=int, default=96, metavar='N')
-parser.add_argument('--file_name', type=str, default='defaultName', metavar='N')
 parser.add_argument('--data_dir', type=str, default='./spmel_desilenced', metavar='N')
+parser.add_argument('--test_list', type=str, default='', metavar='N')
 config = parser.parse_args()
 
 config.cuda = not config.no_cuda and torch.cuda.is_available()
@@ -81,13 +86,18 @@ with open(results_csv, "w") as csvResults:
         print('here1', time.time() - seconds)
         m_list = ['m1_','m2_','m3_','m4_','m5_','m6_','m7_','m8_','m9_','m10_','m11_']
         f_list = ['f1_','f2_','f3_','f4_','f5_','f6_','f7_','f8_','f9_']
+        random.seed(1)
         random.shuffle(m_list)
         random.shuffle(f_list)
         train_m_list, test_m_list = (m_list[:-3],m_list[-3:])
         train_f_list, test_f_list = (f_list[:-2],f_list[-2:])
         train_list = train_m_list + train_f_list
         test_list = test_m_list + test_f_list
-        #print('test_list', test_list)
+        print('train_list', train_list)
+        print('test_list', test_list)
+
+
+        config.test_list = ' '.join(test_list)
         """ its too complex to write a universal specPathDataset with different subfolder structures.
         More ignostic to automatically upload from one shallow directory, and sort from there using the filename analysis.
         Make sure the dataset is fed data in same order as sorted fileList"""
@@ -123,6 +133,8 @@ with open(results_csv, "w") as csvResults:
             config.epochs=2
             config.num_chunks=2
 
+#        now = datetime.now()
+#        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
         writer = SummaryWriter(comment = '_' +config.file_name)
 
         epoch_labels = []
@@ -160,8 +172,8 @@ with open(results_csv, "w") as csvResults:
         
         bestAcc = history_list[3][bestEpoch]
         
-        # torch.save(myModel.state_dict(), 'myModel1.pt')
-        
+        with open(file_name_dir +'/config_params.pkl','wb') as File:
+            pickle.dump(config, File) 
         
         csv_writer.writerow((string_config, config.lr, config.n_mels, config.dropout, config.batch_size, config.reg, config.chunk_seconds, bestEpoch, bestLoss, bestAcc))
 csvResults.close(

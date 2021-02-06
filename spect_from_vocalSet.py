@@ -1,7 +1,7 @@
 import yaml, os, pdb, argparse, time, shutil, librosa, pickle, random
 import numpy as np
 import soundfile as sf
-from pydub import AudioSegment
+from pydub import AudioSegment, effects
 from scipy import signal
 from scipy.signal import get_window, medfilt
 from librosa.filters import mel
@@ -43,6 +43,7 @@ def pySTFT(x, fft_size=args.fft_size, hop_size=args.hop_size):
 def remove_quiet_edges(src_path):
     # From https://stackoverflow.com/questions/29547218/
     audio_seg = AudioSegment.from_file(src_path, format='wav')
+    audio_seg = effects.normalize(audio_seg)
     duration = len(audio_seg)
     start_trim = detect_leading_silence(audio_seg)
     end_trim = detect_leading_silence(audio_seg.reverse())

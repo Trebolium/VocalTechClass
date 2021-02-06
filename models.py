@@ -20,6 +20,8 @@ class Luo2019AsIs(nn.Module):
         self.num_classes=6 # number of classes
         melsteps_per_second = spmel_params['sr'] / spmel_params['hop_size']
         self.window_size = math.ceil(config.chunk_seconds * melsteps_per_second)
+        self.is_blstm = config.is_blstm
+        self.lstm_num = config.lstm_num
 
         self.conv_layer1 = nn.Sequential(
                 nn.Conv1d(96
@@ -95,7 +97,12 @@ class Luo2019AsIs(nn.Module):
             ,nn.ReLU()
             )
 
-        fc_layer3_dim = 256 * 2 * self.chunk_num
+        if self.is_blstm == True:
+            lstm_mult = 2
+        else:
+            lstm_mult = 1
+
+        fc_layer3_dim = 256 * lstm_mult * self.chunk_num
         self.fc_layer3 = nn.Sequential(
             nn.Linear(fc_layer3_dim
                         ,16)
@@ -105,7 +112,7 @@ class Luo2019AsIs(nn.Module):
 
         """ With BLSMT layers """
 
-        self.lstm = nn.LSTM(256, 256, 2, batch_first=True, bidirectional=True)
+        self.lstm = nn.LSTM(256, 256, self.lstm_num, batch_first=True, bidirectional=self.is_blstm)
 
 #
 #        self.fc_layer1 = nn.Sequential(
@@ -182,7 +189,6 @@ class Luo2019AsIs(nn.Module):
         #https://discuss.pytorch.org/t/contigious-vs-non-contigious-tensor/30107/2
         lstm_outs = lstm_outs.contiguous()
         flattened_lstm_outs = lstm_outs.view(lstm_outs.size(0), -1)
-
         xfc3 = self.fc_layer3(flattened_lstm_outs)
         prediction = self.classify_layer(xfc3)
         return prediction

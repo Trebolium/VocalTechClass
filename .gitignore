@@ -1,9 +1,11 @@
 .DS_Store
 /results
 /spmel
+/spmel_desilenced
 /submission
 /runs
 /__pycache__
+/
 *.swp
 *.swo
 *.swn
