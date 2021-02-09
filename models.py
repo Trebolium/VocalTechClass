@@ -128,6 +128,20 @@ class Luo2019AsIs(nn.Module):
 #            nn.ReLU()
 #            )
 
+        """ Attention Layer"""
+
+#        # there should be a fc layer for each timestep in order to calculate how every
+#        # feature in that vector contributes to the learnable weight
+#        # IF THIS IS DONE FOR EVERY CHUNK, THEN WE WILL HAVE A TOTAL OF SIX WEIGHTS
+#        # these weights can then be softmaxed
+#        feature_to_weight_functions = []
+#        for i in range(self.num_chunk):
+#            hidden2weight_layer = nn.Linear(256, 256)
+#            feature_to_weight_functions.append(hidden2weight_layer)
+#        self.f2w_functions = nn.ModuleList(feature_to_weight_functions)
+#
+#        self.attn_lstm = nn.LSTM(
+
         """ Classification Layer """
 
         self.classify_layer = nn.Sequential(
@@ -185,10 +199,32 @@ class Luo2019AsIs(nn.Module):
 
         #collect all chunks of the same example and send them in groups to the BLSTM
         self.lstm.flatten_parameters()
-        lstm_outs, _ = self.lstm(dense_by_recording)
+	# the first value returned by LSTM is all of the hidden states throughout
+	# the sequence. the second is just the most recent hidden state
+        lstm_outs, hidden = self.lstm(dense_by_recording)
+
+
         #https://discuss.pytorch.org/t/contigious-vs-non-contigious-tensor/30107/2
         lstm_outs = lstm_outs.contiguous()
         flattened_lstm_outs = lstm_outs.view(lstm_outs.size(0), -1)
+
+        """Working on Attention Layer bit"""
+######################################################################################
+#        # this 1layer FFNN takes the hidden state produced from the lstm layer
+#        # and learns a function to convert it into the idea weights
+#        
+#        for i, chunk in range(self.num_chunk):
+#            weight = self.f2w_functions[i](lstm_outputs[i])
+#            weights_values.add(weight)
+#        # which are then soft-maxed
+#        attn_weights = F.softmax(weight_values)
+#        # these weights are then applied to the 'hidden features' (multiplied together)
+#        attn_applied = torch.bmm(attn_weights, lstm_outs)
+#        # get the sum of all values across
+#        context = torch.sum(attn_applied, dim-0)
+#            
+######################################################################################
+
         xfc3 = self.fc_layer3(flattened_lstm_outs)
         prediction = self.classify_layer(xfc3)
         return prediction
