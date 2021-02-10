@@ -2,7 +2,7 @@ import csv, pickle, os, pdb
 import numpy as np
 import matplotlib.pyplot as plt
 
-def saveHistory(history_list, dir_path, string_config, epoch_labels):
+def saveHistory(history_list, dir_path, string_config, tech_singer_labels, pred_target_labels):
 
     upper_lim = 0.5
     #pdb.set_trace()
@@ -69,5 +69,7 @@ def saveHistory(history_list, dir_path, string_config, epoch_labels):
         writer.writerow(('Lowest val loss/epoch:', min(val_loss_hist), int(min_val_index[0])))
     csvFile.close()
     
-    with open(dir_path +'/label_log.pkl', 'wb') as handle:
-        pickle.dump(epoch_labels, handle)
+    with open(dir_path +'/tech_singer_labels_log.pkl', 'wb') as handle:
+        pickle.dump(tech_singer_labels, handle)
+    with open(dir_path +'/pred_target_labels_log.pkl', 'wb') as handle:
+        pickle.dump(pred_target_labels, handle)

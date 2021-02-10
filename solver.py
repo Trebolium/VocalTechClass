@@ -85,26 +85,29 @@ class VoiceTechniqueClassifier:
                 y_data = np.expand_dims(y_data.cpu(),1)
                 singer_id = np.expand_dims(singer_id.cpu(),1)
                 if batch_num == 0:
-                    labels = np.hstack((y_data,singer_id))
+                    tech_singer_labels = np.hstack((y_data,singer_id))
+                    pred_target_labels = np.hstack((predicted.unsqueeze(1).cpu().detach().numpy(), y_data))
                 else:
                     tmp =  np.hstack((y_data,singer_id)) 
-                    labels = np.vstack((labels, tmp))
+                    tech_singer_labels = np.vstack((tech_singer_labels, tmp))
+                    tmp = np.hstack((predicted.unsqueeze(1).cpu().detach().numpy(), y_data))
+                    pred_target_labels = np.vstack((pred_target_labels, tmp))
 
-            return labels, accum_loss, accum_corrects
+            return pred_target_labels, tech_singer_labels, accum_loss, accum_corrects
         
         if mode == 'train':
             self.model.train()
             loss_hist=history_list[0]
             acc_hist=history_list[1]
             split_name = 'train'
-            labels, accum_loss, accum_corrects = batch_iterate()
+            pred_target_labels, tech_singer_labels, accum_loss, accum_corrects = batch_iterate()
         elif mode == 'eval':
             self.model.eval()
             loss_hist=history_list[2]
             acc_hist=history_list[3]
             split_name = 'test'
             with torch.no_grad():
-                labels, accum_loss, accum_corrects = batch_iterate()
+                pred_target_labels, tech_singer_labels, accum_loss, accum_corrects = batch_iterate()
         epoch_loss = accum_loss / len(loader)
         epoch_accuracy = accum_corrects / examples_per_epoch
         if self.config.is_wilkins:
@@ -128,7 +131,7 @@ class VoiceTechniqueClassifier:
         save_path = './results/' +self.config.file_name +'/' +str(epoch) +'Epoch_checkpoint.pth.tar'
         self.save_checkpoints(epoch, epoch_loss, epoch_accuracy, save_path)
 
-        return labels
+        return pred_target_labels, tech_singer_labels
 
     def save_checkpoints(self, epoch, loss, accuracy, save_path):
         if epoch == self.config.epochs or epoch % self.config.ckpt_freq == 0:

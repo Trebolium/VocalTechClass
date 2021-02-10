@@ -19,11 +19,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--file_name', type=str, default='defaultName', metavar='N')
 parser.add_argument('--batch_size', type=int, default=128, metavar='N', help='input batch size for training (default: 4)')
 parser.add_argument('--lstm_num', type=int, default=2, metavar='N', help='2 if not specified')
+parser.add_argument('--use_attention', type=str2bool, default=True, help='')
 parser.add_argument('--is_blstm', type=str2bool, default=True, help='')
-parser.add_argument('--chunk_num', type=int, default=23, metavar='N', help='chunk_seconds is 23 if not specified')
+parser.add_argument('--chunk_num', type=int, default=6, metavar='N', help='chunk_seconds is 23 if not specified')
 parser.add_argument('--which_cuda', type=int, default=0, metavar='N')
 parser.add_argument('--epochs', type=int, default=100, metavar='N', help='number of epochs to train (default: 10)')
 parser.add_argument('--lr', type=float, default=0.0001, metavar='N')
+parser.add_argument('--seed', type=int, default=1, metavar='N')
 
 parser.add_argument('--short', type=str2bool, default=False, help='adjust code to work with Wilkins model and audio not spectrograms')
 parser.add_argument('--no_cuda', action='store_true', default=False, help='enables CUDA training')
@@ -86,7 +88,7 @@ with open(results_csv, "w") as csvResults:
         print('here1', time.time() - seconds)
         m_list = ['m1_','m2_','m3_','m4_','m5_','m6_','m7_','m8_','m9_','m10_','m11_']
         f_list = ['f1_','f2_','f3_','f4_','f5_','f6_','f7_','f8_','f9_']
-        random.seed(1)
+        random.seed(config.seed)
         random.shuffle(m_list)
         random.shuffle(f_list)
         train_m_list, test_m_list = (m_list[:-3],m_list[-3:])
@@ -137,7 +139,8 @@ with open(results_csv, "w") as csvResults:
 #        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
         writer = SummaryWriter(comment = '_' +config.file_name)
 
-        epoch_labels = []
+        tech_singer_labels = []
+        pred_target_labels = []
         """https://stackoverflow.com/questions/50544730/how-do-i-split-a-custom-dataset-into-training-and-test-datasets"""
         train_sampler = SubsetRandomSampler(train_indices_list) 
         test_sampler = SubsetRandomSampler(test_indices_list)   
@@ -153,15 +156,16 @@ with open(results_csv, "w") as csvResults:
         else: previous_epochs = 0
         for epoch in range(previous_epochs+1, previous_epochs+config.epochs+1):
             # history_list gets extended while inside these functions
-            train_labels = vt_classer.infer(epoch, train_loader, history_list, writer, len(train_indices_list), 'train')
-            val_labels = vt_classer.infer(epoch, test_loader, history_list, writer, len(test_indices_list), 'eval')
-            epoch_labels.append((train_labels, val_labels)) 
+            train_pred_target_labels, train_tech_singer_labels = vt_classer.infer(epoch, train_loader, history_list, writer, len(train_indices_list), 'train')
+            val_pred_target_labels, val_tech_singer_labels = vt_classer.infer(epoch, test_loader, history_list, writer, len(test_indices_list), 'eval')
+            tech_singer_labels.append((train_tech_singer_labels, val_tech_singer_labels)) 
+            pred_target_labels.append((train_pred_target_labels, val_pred_target_labels)) 
             writer.flush()
 
         writer.close() 
         # model_file_name = os.path.basename(__file__)[:-3]
         
-        saveHistory(history_list, file_name_dir, string_config, epoch_labels)
+        saveHistory(history_list, file_name_dir, string_config, tech_singer_labels, pred_target_labels)
         #invalid terms just
         bestLoss = history_list[0][0]
 
