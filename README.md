@@ -1,14 +1,14 @@
 # VocalTechClass
 
 ensure you have a virtual environment that has the following installed:
-torch
-librosa
-soundfile
-pydub
-PyYAML
-scipy
-numpy
-matplotlib
+torch,
+librosa,
+soundfile,
+pydub,
+PyYAML,
+scipy,
+numpy,
+matplotlib,
 tensorboard
 
 `python main.py` should train the model using the attention mechanism automatically. However the attention mechanism is not complete, as I am unsure what to do with the context vector thats been generated.
