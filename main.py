@@ -63,7 +63,7 @@ with open(results_csv, "w") as csvResults:
     csv_writer.writerow(header)
     
     randomIterations=config.iteration
-    for i in tqdm(range(randomIterations)):
+    for i in range(randomIterations):
 
         if randomIterations>1:
             # search parameters for random search
