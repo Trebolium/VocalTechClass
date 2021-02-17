@@ -5,7 +5,6 @@ from solver import VoiceTechniqueClassifier
 from data import pathSpecDataset, audioSnippetDataset
 import pickle, argparse, re, pdb, json, yaml, random, time, os, csv
 import numpy as np
-from tqdm import tqdm
 import torch
 from torch import optim
 from torch.utils.tensorboard import SummaryWriter
@@ -17,6 +16,7 @@ def str2bool(v):
 parser = argparse.ArgumentParser()
 # metavar argument is for the actual name of the variable, in case the optional argument (eg. --batch-size) is not informative enough
 parser.add_argument('--file_name', type=str, default='defaultName', metavar='N')
+parser.add_argument('--model', type=str, default='luo', help='adjust code to work with Wilkins model and audio not spectrograms')
 parser.add_argument('--batch_size', type=int, default=128, metavar='N', help='input batch size for training (default: 4)')
 parser.add_argument('--lstm_num', type=int, default=2, metavar='N', help='2 if not specified')
 parser.add_argument('--use_attention', type=str2bool, default=True, help='')
@@ -26,13 +26,11 @@ parser.add_argument('--which_cuda', type=int, default=0, metavar='N')
 parser.add_argument('--epochs', type=int, default=100, metavar='N', help='number of epochs to train (default: 10)')
 parser.add_argument('--lr', type=float, default=0.0001, metavar='N')
 parser.add_argument('--seed', type=int, default=1, metavar='N')
+parser.add_argument('--dropout', type=float, default=0., metavar='N')
 
 parser.add_argument('--short', type=str2bool, default=False, help='adjust code to work with Wilkins model and audio not spectrograms')
 parser.add_argument('--no_cuda', action='store_true', default=False, help='enables CUDA training')
-parser.add_argument('--is_wilkins', type=str2bool, default=False, help='adjust code to work with Wilkins model and audio not spectrograms')
 parser.add_argument('--chunk_seconds', type=float, default=0.5, metavar='N', help='chunk_seconds is 0.5 if not specified')
-parser.add_argument('--model', type=str, metavar='N', default='Luo2019AsIs', help='define the name of the model to be used')
-parser.add_argument('--dropout', type=float, default=0.4, metavar='N')
 parser.add_argument('--ckpt_freq', type=int, default=100, metavar='N')
 parser.add_argument('--load_ckpt', type=str, default='', metavar='N')
 parser.add_argument('--reg', type=float, default=0, metavar='N')
@@ -104,17 +102,16 @@ with open(results_csv, "w") as csvResults:
         More ignostic to automatically upload from one shallow directory, and sort from there using the filename analysis.
         Make sure the dataset is fed data in same order as sorted fileList"""
 
-        with open('spmel_desilenced/spmel_params.yaml') as File:
-            spmel_params = yaml.load(File, Loader=yaml.FullLoader)
         
-        if config.is_wilkins == True:
+        if config.model == 'wilkins':
+            config.data_dir = './audio_path_list.pkl'
             dataset = audioSnippetDataset(config)
-            model = models.WilkinsAudioCNN(config)
             fileList = pickle.load(open(config.data_dir, 'rb'))
         else:
-            _, _, fileList = next(os.walk('./spmel_desilenced'))
+            with open(config.data_dir +'/spmel_params.yaml') as File:
+                spmel_params = yaml.load(File, Loader=yaml.FullLoader)
+            _, _, fileList = next(os.walk(config.data_dir))
             dataset = pathSpecDataset(config, spmel_params)
-            model = models.Luo2019AsIs(config, spmel_params)
         print('here2', time.time() - seconds)
         file_path_list = sorted(fileList)
         fileList = [os.path.basename(x) for x in file_path_list]
@@ -137,7 +134,10 @@ with open(results_csv, "w") as csvResults:
 
 #        now = datetime.now()
 #        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-        writer = SummaryWriter(comment = '_' +config.file_name)
+        if config.file_name == 'defaultName':
+            writer = SummaryWriter('testRuns/test')
+        else:
+            writer = SummaryWriter(comment = '_' +config.file_name)
 
         tech_singer_labels = []
         pred_target_labels = []
@@ -146,7 +146,7 @@ with open(results_csv, "w") as csvResults:
         test_sampler = SubsetRandomSampler(test_indices_list)   
         train_loader = DataLoader(dataset, batch_size=config.batch_size, sampler=train_sampler, shuffle=False, drop_last=False)
         test_loader = DataLoader(dataset, batch_size=config.batch_size, sampler=test_sampler, shuffle=False, drop_last=False)
-        vt_classer = VoiceTechniqueClassifier(config, spmel_params)
+        vt_classer = VoiceTechniqueClassifier(config)
 
         #example_data, example_targets, ex_singer_ids = iter(test_loader).next()
         #writer.add_graph(model, example_data.float())
@@ -157,13 +157,13 @@ with open(results_csv, "w") as csvResults:
         for epoch in range(previous_epochs+1, previous_epochs+config.epochs+1):
             # history_list gets extended while inside these functions
             train_pred_target_labels, train_tech_singer_labels = vt_classer.infer(epoch, train_loader, history_list, writer, len(train_indices_list), 'train')
-            val_pred_target_labels, val_tech_singer_labels = vt_classer.infer(epoch, test_loader, history_list, writer, len(test_indices_list), 'eval')
+            val_pred_target_labels, val_tech_singer_labels = vt_classer.infer(epoch, test_loader, history_list, writer, len(test_indices_list), 'test')
             tech_singer_labels.append((train_tech_singer_labels, val_tech_singer_labels)) 
             pred_target_labels.append((train_pred_target_labels, val_pred_target_labels)) 
             writer.flush()
 
         writer.close() 
-        # model_file_name = os.path.basename(__file__)[:-3]
+         # model_file_name = os.path.basename(__file__)[:-3]
         
         saveHistory(history_list, file_name_dir, string_config, tech_singer_labels, pred_target_labels)
         #invalid terms just

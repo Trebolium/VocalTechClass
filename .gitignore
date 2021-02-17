@@ -1,9 +1,11 @@
 .DS_Store
+/wavs_desilenced_denormed
 /results
 /spmel
 /spmel_desilenced
 /submission
 /runs
+/testRuns
 /__pycache__
 /
 *.swp

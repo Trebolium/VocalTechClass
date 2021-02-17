@@ -11,6 +11,7 @@ class Luo2019AsIs(nn.Module):
         self.use_attention = config.use_attention
         self.chunk_num = config.chunk_num
         self.batch_size = config.batch_size
+        self.dropout = config.dropout
         self.kernelSize = 3
         self.paddingSize = int(math.ceil((self.kernelSize-1)/2))
         self.initial_channels = config.n_mels
@@ -21,6 +22,7 @@ class Luo2019AsIs(nn.Module):
         self.window_size = math.ceil(config.chunk_seconds * melsteps_per_second)
         self.is_blstm = config.is_blstm
         self.lstm_num = config.lstm_num
+        self.file_name = config.file_name
 
         self.conv_layer1 = nn.Sequential(
                 nn.Conv1d(96
@@ -44,6 +46,7 @@ class Luo2019AsIs(nn.Module):
         self.fc_layer1 = nn.Sequential(
             nn.Linear(self.flat_size
                         ,512)
+            ,nn.Dropout(self.dropout)
             ,nn.BatchNorm1d(512)
             ,nn.ReLU()
             )
@@ -59,6 +62,208 @@ class Luo2019AsIs(nn.Module):
         else:
             lstm_mult = 1
 
+        fc_layer3_dim = 256 * lstm_mult
+        fc3_layers = []
+        for i in range(self.chunk_num):
+            fc3_layer = nn.Sequential(
+                nn.Linear(fc_layer3_dim
+                    ,self.latent_dim)
+                ,nn.BatchNorm1d(self.latent_dim)
+                ,nn.ReLU()
+                )
+            fc3_layers.append(fc3_layer)
+        self.fc_by_chunk = nn.ModuleList(fc3_layers)
+
+#        self.fc_layer3 = nn.Sequential(
+#            nn.Linear(fc_layer3_dim
+#                        ,self.latent_dim)
+#            #,nn.BatchNorm1d(16)
+#            ,nn.ReLU()
+#            )
+
+        """ BLSMT layers """
+
+        self.lstm = nn.LSTM(256, 256, self.lstm_num, batch_first=True, bidirectional=self.is_blstm)
+
+        """ Attention Layer"""
+##############################################################################
+        # Make a 1layer FFNN for each weight in the network
+
+        feature_to_weight_functions = []
+        for i in range(self.chunk_num):
+            # for each value of h_j, create a corresponding weight
+            hiddenV2weightV_layer = nn.Linear(self.latent_dim, self.latent_dim)
+            feature_to_weight_functions.append(hiddenV2weightV_layer)
+        self.f2w_functions = nn.ModuleList(feature_to_weight_functions)
+
+##############################################################################
+
+        """ Classification Layer """
+
+        self.classify_layer = nn.Sequential(
+            nn.Linear(self.latent_dim, self.num_classes)
+#            ,nn.BatchNorm1d(self.num_classes)
+            #,nn.Sigmoid()
+            )
+
+    def forward(self, x):
+        #pdb.set_trace()
+        x = x.transpose(-1,-2)
+        #x = x.unsqueeze(1) # for 2D convolution
+
+        xc1 = self.conv_layer1(x)
+        xc2 = self.conv_layer2(xc1)
+
+        # group tensors by their corresponding example/ audio recording
+        grouped_by_recording = []
+        num_examples = int(xc2.shape[0]/self.chunk_num)
+        for i in range(num_examples):
+            offset = i * self.chunk_num
+            example_batch = xc2[offset : offset + self.chunk_num]
+            grouped_by_recording.append(example_batch)
+        if self.file_name == 'defaultName':
+            pdb.set_trace()
+        # this block produces separately calculated dense layers that are concatenated together at the end
+        for i, recording in enumerate(grouped_by_recording):
+            if recording.shape[0] == self.chunk_num:
+                flattened_xc2 = recording.view(recording.size(0), -1)
+                xfc1 = self.fc_layer1(flattened_xc2)
+                xfc2 = self.fc_layer2(xfc1)
+                if i == 0:
+                    dense_by_recording = xfc2.unsqueeze(0)
+                else:
+                    dense_by_recording = torch.cat((dense_by_recording, xfc2.unsqueeze(0)))
+        if self.file_name == 'defaultName':
+            pdb.set_trace()
+        #collect all chunks of the same example and send them in groups to the BLSTM
+        self.lstm.flatten_parameters()
+        # the first value returned by LSTM is all of the hidden states throughout
+            # the sequence. the second is just the most recent hidden state
+        lstm_outs, hidden = self.lstm(dense_by_recording)
+
+
+        #https://discuss.pytorch.org/t/contigious-vs-non-contigious-tensor/30107/2
+        lstm_outs = lstm_outs.contiguous()
+        for i in range(self.chunk_num):
+            ith_chunk = self.fc_by_chunk[i](lstm_outs[:,i])
+            if i==0:
+                fc3_out = ith_chunk.unsqueeze(1)
+            else:
+                fc3_out = torch.cat((fc3_out, ith_chunk.unsqueeze(1)),1)
+            
+        #flattened_lstm_outs = lstm_outs.view(lstm_outs.size(0), -1)
+        #xfc3 = self.fc_layer3(flattened_lstm_outs)
+        if self.file_name == 'defaultName':
+            pdb.set_trace()
+        # at this point the tensor is no longer temporal, so why is attention used?
+        """Working on Attention Layer bit"""
+######################################################################################
+        # this 1layer FFNN takes the hidden state produced from the lstm layer
+        # and learns a function to convert it into the ideal weights
+        if self.use_attention == True:
+            for i in range(self.chunk_num):
+                # use linear layer as f function for determining weight values from h_{j}
+                weight = self.f2w_functions[i](fc3_out[:,i])
+                if i == 0:
+                    weights_values = weight.unsqueeze(1)
+                else:
+                    weights_values = torch.cat((weights_values, weight.unsqueeze(1)),1)
+            if self.file_name == 'defaultName':
+                pdb.set_trace()
+#            # after recombining all tensors the must be transposed for correct tensor shape (batch, features)
+#            weights_values = weights_values.transpose(0,1)
+            # which are then soft-maxed
+            attn_weights = F.softmax(weights_values, dim=1)
+            # these weights are then applied to the 'hidden features' (multiplied together)
+            attn_applied = attn_weights * fc3_out
+            # get the sum of all weighted features to produce context c
+            context = torch.sum(attn_applied, dim=1)
+            prediction = context
+######################################################################################
+        else:
+            prediction = self.classify_layer(xfc3)
+        return prediction
+
+
+class Choi_k2c2(nn.Module):
+    def __init__(self, config, spmel_params):
+        super().__init__()
+
+        """ Choi's k2c2 """
+        # the number of chunks that a spectrogram is split into
+        self.use_attention = config.use_attention
+        self.chunk_num = config.chunk_num
+        self.dropout = config.dropout
+        self.batch_size = config.batch_size
+        self.kernelSize = 3
+        self.paddingSize = int(math.ceil((self.kernelSize-1)/2))
+        self.initial_channels = config.n_mels
+        self.inc1Dim = 512
+        self.latent_dim = 16
+        self.num_classes=6 # number of classes
+        melsteps_per_second = spmel_params['sr'] / spmel_params['hop_size']
+        self.window_size = math.ceil(config.chunk_seconds * melsteps_per_second)
+        self.is_blstm = config.is_blstm
+        self.lstm_num = config.lstm_num
+        self.file_name = config.file_name
+
+        self.conv_layer1 = nn.Sequential(
+                nn.Conv2d(1,
+                           64,
+                            kernel_size = self.kernelSize, padding = self.paddingSize),
+                nn.BatchNorm2d(64),
+                nn.ReLU()
+                ,nn.MaxPool2d(2,2)
+            )
+        self.conv_layer2 = nn.Sequential(
+                nn.Conv2d(64,
+                            128,
+                            kernel_size = self.kernelSize, padding = self.paddingSize),
+                nn.BatchNorm2d(128),
+                nn.ReLU()
+                ,nn.MaxPool2d(5,4)
+            )
+        self.conv_layer3 = nn.Sequential(
+                nn.Conv2d(128,
+                            256,
+                            kernel_size = self.kernelSize, padding = self.paddingSize),
+                nn.BatchNorm2d(256),
+                nn.ReLU()
+                ,nn.MaxPool2d(2,3)
+            )   
+        self.conv_layer4 = nn.Sequential(
+                nn.Conv2d(256,
+                            512,
+                            kernel_size = self.kernelSize, padding = self.paddingSize),
+                nn.BatchNorm2d(512),
+                nn.ReLU()
+                ,nn.MaxPool2d(2,4)
+            )   
+        self.flat_size = 512
+
+        """ Dense Layers """
+
+        self.fc_layer1 = nn.Sequential(
+            nn.Linear(self.flat_size
+                        ,512)
+            ,nn.Dropout(self.dropout)
+            ,nn.BatchNorm1d(512)
+            ,nn.ReLU()
+            )
+        self.fc_layer2 = nn.Sequential(
+            nn.Linear(512
+                        ,256)
+            #,nn.Dropout(self.dropout)
+            ,nn.BatchNorm1d(256)
+            ,nn.ReLU()
+            )
+
+        if self.is_blstm == True:
+            lstm_mult = 2
+        else:
+            lstm_mult = 1
+
+        #fc_layer3_dim = 1536
         fc_layer3_dim = 256 * lstm_mult * self.chunk_num
         self.fc_layer3 = nn.Sequential(
             nn.Linear(fc_layer3_dim
@@ -93,31 +298,44 @@ class Luo2019AsIs(nn.Module):
             )
 
     def forward(self, x): 
-        #pdb.set_trace()
-        x = x.transpose(-1,-2)
-        #x = x.unsqueeze(1) # for 2D convolution
-                                
-        xc1 = self.conv_layer1(x)
+        x0 = x.transpose(-1,-2)
+        x0 = x0.unsqueeze(1) # for 2D convolution
+        xc1 = self.conv_layer1(x0)
         xc2 = self.conv_layer2(xc1)
+        xc3 = self.conv_layer3(xc2)
+        xc4 = self.conv_layer4(xc3)
+        if self.file_name == 'defaultName':
+            print(x.shape)
+            print(x0.shape)
+            print(xc1.shape)
+            print(xc2.shape)
+            print(xc3.shape)
+            print(xc4.shape)
+            pdb.set_trace()
         
         # group tensors by their corresponding example/ audio recording
         grouped_by_recording = []
-        num_examples = int(xc2.shape[0]/self.chunk_num)
-        for i in range(num_examples):
+        for i in range(self.batch_size):
             offset = i * self.chunk_num
-            example_batch = xc2[offset : offset + self.chunk_num]
+            example_batch = xc4[offset : offset + self.chunk_num]
             grouped_by_recording.append(example_batch)
 
+        if self.file_name == 'defaultName':
+            pdb.set_trace()
+        
         # this block produces separately calculated dense layers that are concatenated together at the end
         for i, recording in enumerate(grouped_by_recording):
             if recording.shape[0] == self.chunk_num:
-                flattened_xc2 = recording.view(recording.size(0), -1)
-                xfc1 = self.fc_layer1(flattened_xc2)
+                flattened_rec = recording.squeeze(-1).squeeze(-1)
+                xfc1 = self.fc_layer1(flattened_rec)
                 xfc2 = self.fc_layer2(xfc1)
                 if i == 0:
                     dense_by_recording = xfc2.unsqueeze(0)
                 else:
                     dense_by_recording = torch.cat((dense_by_recording, xfc2.unsqueeze(0)))
+        
+        if self.file_name == 'defaultName':
+            pdb.set_trace()
 
         #collect all chunks of the same example and send them in groups to the BLSTM
         self.lstm.flatten_parameters()

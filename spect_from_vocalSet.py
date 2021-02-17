@@ -48,7 +48,7 @@ def remove_quiet_edges(src_path):
     start_trim = detect_leading_silence(audio_seg)
     end_trim = detect_leading_silence(audio_seg.reverse())
     trimmed_audio_seg = audio_seg[start_trim:duration-end_trim]
-    trimmed_audio_seg.export('./silence_trimmed_audio.wav', format="wav")
+    trimmed_audio_seg.export('./wavs_desilenced_denormed/' +os.path.basename(src_path), format="wav")
 
 def detect_leading_silence(audio_seg, silence_thresh=-60.0, chunk_size=10):
     # From https://stackoverflow.com/questions/29547218/
@@ -120,7 +120,8 @@ beltCount = trillCount = straightCount = fryCount = vibratoCount = breathyCount 
 class_counter_list = [beltCount, trillCount, straightCount, fryCount, vibratoCount, breathyCount]
 class_list=['belt','lip_trill','straight','vocal_fry','vibrato','breathy']
 exclude_list = ['caro','row','long','dona']
-audio_path_list = []
+original_audio_path_list = []
+edited_audio_path_list = []
 
 for subdir_idx, subdir in enumerate(sorted(subdirList)):
     #print(subdir)
@@ -166,13 +167,14 @@ for subdir_idx, subdir in enumerate(sorted(subdirList)):
                         """Now that directories have been navigated and files have been filtered, do processing """
                         # Read audio file
                         path_name = os.path.join(dirName, subdir, subsubdir, subsubsubdir, fileName)
-                        audio_path_list.append(path_name)
+                        original_audio_path_list.append(path_name)
                         print('converting: ', path_name)
                         #if fileName == 'f1_arpeggios_vocal_fry_e.wav':
                         #    pdb.set_trace()
                         remove_quiet_edges(path_name)
                         #pdb.set_trace()
-                        preprocessed_data = preprocess(sf.read('./silence_trimmed_audio.wav'))
+                        preprocessed_data = preprocess(sf.read('./wavs_desilenced_denormed/' +os.path.basename(path_name)))
+                        edited_audio_path_list.append('./wavs_desilenced_denormed/' +os.path.basename(path_name))
                         # save spect    
                         np.save(os.path.join(args.trg_data_dir, fileName[:-4]),
                                 preprocessed_data.astype(np.float32), allow_pickle=False)    
@@ -185,8 +187,13 @@ for subdir_idx, subdir in enumerate(sorted(subdirList)):
             #                break
                         file_counter += 1
 
-with open('./audio_path_list.pkl', 'wb') as handle:
-    pickle.dump(audio_path_list, handle)
+
+sorted_original_audio_path_list = sorted(original_audio_path_list)
+sorted_edited_audio_path_list = sorted(edited_audio_path_list)
+with open('./original_audio_path_list.pkl', 'wb') as handle:
+    pickle.dump(sorted_original_audio_path_list, handle)
+with open('./edited_audio_path_list.pkl', 'wb') as handle:
+    pickle.dump(sorted_edited_audio_path_list, handle)
 
 
 print('time taken', time.time()-start_time)
