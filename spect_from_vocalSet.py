@@ -85,7 +85,7 @@ def preprocess(audio_sr_tuple):
     return S
 
 # audio file directory
-rootDir = '/import/c4dm-datasets/VocalSet1-2/data_by_' +args.class_dir
+rootDir = '/Users/brendanoconnor/Downloads/VocalSet1-2/data_by_' +args.class_dir
 # spectrogram directory
 # pitch contour directory
 # targetDirPitch = './pitch'
@@ -106,7 +106,7 @@ with open(args.trg_data_dir +'/spmel_params.yaml', 'w') as File:
     documents = yaml.dump(dict_file, File)
 
 #pdb.set_trace()
-_, src_sr = sf.read('/import/c4dm-datasets/VocalSet1-2/data_by_singer/male1/arpeggios/belt/m1_arpeggios_belt_a.wav')
+_, src_sr = sf.read('/Users/brendanoconnor/Downloads/VocalSet1-2/data_by_singer/male1/arpeggios/belt/m1_arpeggios_belt_a.wav')
 mel_basis = mel(args.trg_sr, args.fft_size, fmin=args.fmin, fmax=args.trg_sr/2, n_mels=args.n_mels).T
 min_level = np.exp(-100 / 20 * np.log(10))
 b, a = butter_highpass(30, args.trg_sr, order=5)
