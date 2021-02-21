@@ -54,15 +54,17 @@ class VoiceTechniqueClassifier:
                 x_data = x_data.to(self.device, dtype=torch.float)
                 y_data = y_data.to(self.device)
 
+                if self.config.file_name == 'defaultName': pdb.set_trace()
+
                 if self.config.model == 'luo' or self.config.model == 'choi_k2c2':
                     #tensors must be reshaped so that they have 3 dims
-                    for i, batch in enumerate(x_data):
-                        if i == 0:
-                            reshaped_batches = batch
-                        else:
-                            reshaped_batches = torch.cat((reshaped_batches, batch))
-                    x_data = reshaped_batches
-                     
+                    x_data = x_data.view(x_data.shape[0] * x_data.shape[1], x_data.shape[2], x_data.shape[3])
+#                    for i, batch in enumerate(x_data):
+#                        if i == 0:
+#                            reshaped_batches = batch
+#                        else:
+#                            reshaped_batches = torch.cat((reshaped_batches, batch))
+#                    x_data = reshaped_batches
                 if mode == 'test' and epoch == self.config.epochs and batch_num == 0:
                     np.save('results/' +self.config.file_name +f'/x_data_e{epoch}_b{batch_num}', x_data.cpu().detach().numpy())
                     #np.save('results/' +self.config.file_name +f'/y_data_e{epoch}_b{batch_num}', y_data.cpu().detach().numpy())
@@ -80,14 +82,15 @@ class VoiceTechniqueClassifier:
                     loss.backward()
                     self.optimizer.step()
 
-                print('Epoch {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tAcc: {:.6f}'.format(
+                print('Epoch {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tAcc: {:.6f}\tCorrect: {:.6f}'.format(
                     # inaccurate reading here if on last batch and drop_last=False
                     epoch,
                     batch_num * self.config.batch_size,
                     examples_per_epoch,
                     100. * batch_num / len(loader),
                     loss.item(),
-                    accuracy)) # calculates average loss per example
+                    accuracy,
+                    corrects)) # calculates average loss per example
                 
                 y_data = np.expand_dims(y_data.cpu(),1)
                 singer_id = np.expand_dims(singer_id.cpu(),1)
@@ -99,7 +102,9 @@ class VoiceTechniqueClassifier:
                     tech_singer_labels = np.vstack((tech_singer_labels, tmp))
                     tmp = np.hstack((predicted.unsqueeze(1).cpu().detach().numpy(), y_data))
                     pred_target_labels = np.vstack((pred_target_labels, tmp))
-
+                #if mode =='test':
+                    #pdb.set_trace()
+                    
             return pred_target_labels, tech_singer_labels, accum_loss, accum_corrects
         
         if mode == 'train':
@@ -113,7 +118,7 @@ class VoiceTechniqueClassifier:
             acc_hist=history_list[3]
             with torch.no_grad():
                 pred_target_labels, tech_singer_labels, accum_loss, accum_corrects = batch_iterate()
-        epoch_loss = accum_loss / len(loader)
+        epoch_loss = accum_loss / examples_per_epoch
         epoch_accuracy = accum_corrects / examples_per_epoch
         if self.config.model == 'wilkins':
             #writer.add_scalar(f"Number Correct/{mode}", accum_corrects, epoch)
@@ -130,11 +135,13 @@ class VoiceTechniqueClassifier:
 #            writer.add_histogram(f"enc_convs_conv_layer1.weight", self.model.enc_convs[0][0].weight, epoch)
 #            writer.add_histogram(f"enc_convs_conv_layer1.weight.grad", self.model.enc_convs[0][0].weight.grad, epoch) 
         print()
-        print('Epoch {} Loss: {:.4f}, Acc: {:.4f}'.format(epoch, epoch_loss, epoch_accuracy))
+        print('Epoch {} Loss: {:.4f}, Acc: {:.4f} Corrects:{:.4f}'.format(epoch, epoch_loss, epoch_accuracy, accum_corrects))
         loss_hist.append(epoch_loss)
         acc_hist.append(epoch_accuracy)
         save_path = './results/' +self.config.file_name +'/' +str(epoch) +'Epoch_checkpoint.pth.tar'
-        self.save_checkpoints(epoch, epoch_loss, epoch_accuracy, save_path)
+        if mode == 'test':
+            self.save_checkpoints(epoch, epoch_loss, epoch_accuracy, save_path)
+            #pdb.set_trace()
 
         return pred_target_labels, tech_singer_labels
 

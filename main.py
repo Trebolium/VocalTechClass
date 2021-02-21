@@ -134,7 +134,7 @@ with open(results_csv, "w") as csvResults:
 
 #        now = datetime.now()
 #        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-        if config.file_name == 'defaultName':
+        if config.file_name == 'defaultName' or config.file_name == 'deletable':
             writer = SummaryWriter('testRuns/test')
         else:
             writer = SummaryWriter(comment = '_' +config.file_name)

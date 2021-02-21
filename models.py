@@ -62,24 +62,24 @@ class Luo2019AsIs(nn.Module):
         else:
             lstm_mult = 1
 
-        fc_layer3_dim = 256 * lstm_mult
-        fc3_layers = []
-        for i in range(self.chunk_num):
-            fc3_layer = nn.Sequential(
-                nn.Linear(fc_layer3_dim
-                    ,self.latent_dim)
-                ,nn.BatchNorm1d(self.latent_dim)
-                ,nn.ReLU()
-                )
-            fc3_layers.append(fc3_layer)
-        self.fc_by_chunk = nn.ModuleList(fc3_layers)
+#        fc3_layers = []
+#        for i in range(self.chunk_num):
+#            fc3_layer = nn.Sequential(
+#                nn.Linear(fc_layer3_dim
+#                    ,self.latent_dim)
+#                ,nn.BatchNorm1d(self.latent_dim)
+#                ,nn.ReLU()
+#                )
+#            fc3_layers.append(fc3_layer)
+#        self.fc_by_chunk = nn.ModuleList(fc3_layers)
 
-#        self.fc_layer3 = nn.Sequential(
-#            nn.Linear(fc_layer3_dim
-#                        ,self.latent_dim)
-#            #,nn.BatchNorm1d(16)
-#            ,nn.ReLU()
-#            )
+        fc_layer3_dim = 256 * lstm_mult
+        self.fc_layer3 = nn.Sequential(
+            nn.Linear(fc_layer3_dim
+                        ,self.latent_dim)
+            ,nn.BatchNorm1d(16)
+            ,nn.ReLU()
+            )
 
         """ BLSMT layers """
 
@@ -89,99 +89,75 @@ class Luo2019AsIs(nn.Module):
 ##############################################################################
         # Make a 1layer FFNN for each weight in the network
 
-        feature_to_weight_functions = []
-        for i in range(self.chunk_num):
-            # for each value of h_j, create a corresponding weight
-            hiddenV2weightV_layer = nn.Linear(self.latent_dim, self.latent_dim)
-            feature_to_weight_functions.append(hiddenV2weightV_layer)
-        self.f2w_functions = nn.ModuleList(feature_to_weight_functions)
+        self.feat2weight_ffnn = nn.Linear(self.latent_dim, 1)
+#        feature_to_weight_functions = []
+#        for i in range(self.chunk_num):
+#            # for each value of h_j, create a corresponding weight
+#            hiddenV2weightV_layer = nn.Linear(self.latent_dim, self.latent_dim)
+#            feature_to_weight_functions.append(hiddenV2weightV_layer)
+#        self.f2w_functions = nn.ModuleList(feature_to_weight_functions)
 
 ##############################################################################
 
         """ Classification Layer """
 
-        self.classify_layer = nn.Sequential(
+        self.class_layer_wAttn = nn.Sequential(
             nn.Linear(self.latent_dim, self.num_classes)
-#            ,nn.BatchNorm1d(self.num_classes)
-            #,nn.Sigmoid()
+            )
+        
+        self.class_layer_noAttn = nn.Sequential(
+            nn.Linear(self.latent_dim * self.chunk_num, self.num_classes)
             )
 
     def forward(self, x):
-        #pdb.set_trace()
+        if self.file_name == 'defaultName': pdb.set_trace()
         x = x.transpose(-1,-2)
-        #x = x.unsqueeze(1) # for 2D convolution
-
         xc1 = self.conv_layer1(x)
         xc2 = self.conv_layer2(xc1)
-
-        # group tensors by their corresponding example/ audio recording
-        grouped_by_recording = []
+        # num_examples not always batch size, if Dataloader's drop_last=true
         num_examples = int(xc2.shape[0]/self.chunk_num)
-        for i in range(num_examples):
-            offset = i * self.chunk_num
-            example_batch = xc2[offset : offset + self.chunk_num]
-            grouped_by_recording.append(example_batch)
-        if self.file_name == 'defaultName':
-            pdb.set_trace()
-        # this block produces separately calculated dense layers that are concatenated together at the end
-        for i, recording in enumerate(grouped_by_recording):
-            if recording.shape[0] == self.chunk_num:
-                flattened_xc2 = recording.view(recording.size(0), -1)
-                xfc1 = self.fc_layer1(flattened_xc2)
-                xfc2 = self.fc_layer2(xfc1)
-                if i == 0:
-                    dense_by_recording = xfc2.unsqueeze(0)
-                else:
-                    dense_by_recording = torch.cat((dense_by_recording, xfc2.unsqueeze(0)))
-        if self.file_name == 'defaultName':
-            pdb.set_trace()
-        #collect all chunks of the same example and send them in groups to the BLSTM
+    	# flatten for next fc layers
+        flattened_xc2 = xc2.view(xc2.shape[0], -1)
+        xfc2 = self.fc_layer2(self.fc_layer1(flattened_xc2))
+        # group tensor by chunks so that lstm can process all relevant timesteps of vectors
+        xfc2_by_full_example = xfc2.view(xfc2.shape[0] // self.chunk_num, self.chunk_num, xfc2.shape[1])
         self.lstm.flatten_parameters()
-        # the first value returned by LSTM is all of the hidden states throughout
-            # the sequence. the second is just the most recent hidden state
-        lstm_outs, hidden = self.lstm(dense_by_recording)
-
-
-        #https://discuss.pytorch.org/t/contigious-vs-non-contigious-tensor/30107/2
+        lstm_outs, hidden = self.lstm(xfc2_by_full_example)
+        # https://discuss.pytorch.org/t/contigious-vs-non-contigious-tensor/30107/2
         lstm_outs = lstm_outs.contiguous()
-        for i in range(self.chunk_num):
-            ith_chunk = self.fc_by_chunk[i](lstm_outs[:,i])
-            if i==0:
-                fc3_out = ith_chunk.unsqueeze(1)
-            else:
-                fc3_out = torch.cat((fc3_out, ith_chunk.unsqueeze(1)),1)
-            
-        #flattened_lstm_outs = lstm_outs.view(lstm_outs.size(0), -1)
-        #xfc3 = self.fc_layer3(flattened_lstm_outs)
-        if self.file_name == 'defaultName':
-            pdb.set_trace()
+        # flattened chunks across the batch axis, so next fc layer can process all flattened tensors simultaneously
+        lstm_outs_by_batch = lstm_outs.view(lstm_outs.shape[0] * lstm_outs.shape[1], lstm_outs.shape[2])
+        fc3_by_batch = self.fc_layer3(lstm_outs_by_batch)
+        # group by tensor again so that attention mechanism can consider all chunks for context vector
+        fc3_by_full_example = fc3_by_batch.view(fc3_by_batch.shape[0]//self.chunk_num, self.chunk_num, fc3_by_batch.shape[1])
+
+        if self.file_name == 'defaultName': pdb.set_trace()
         # at this point the tensor is no longer temporal, so why is attention used?
-        """Working on Attention Layer bit"""
-######################################################################################
-        # this 1layer FFNN takes the hidden state produced from the lstm layer
-        # and learns a function to convert it into the ideal weights
+
         if self.use_attention == True:
-            for i in range(self.chunk_num):
-                # use linear layer as f function for determining weight values from h_{j}
-                weight = self.f2w_functions[i](fc3_out[:,i])
+            """Simplified Attention mechanism - http://arxiv.org/abs/1512.08756"""
+            ###########################################################################
+            for i in range(num_examples):
+                weight = self.feat2weight_ffnn(fc3_by_full_example[i])
                 if i == 0:
-                    weights_values = weight.unsqueeze(1)
+                    weights_values = weight.unsqueeze(0)
                 else:
-                    weights_values = torch.cat((weights_values, weight.unsqueeze(1)),1)
-            if self.file_name == 'defaultName':
-                pdb.set_trace()
-#            # after recombining all tensors the must be transposed for correct tensor shape (batch, features)
-#            weights_values = weights_values.transpose(0,1)
-            # which are then soft-maxed
+                    weights_values = torch.cat((weights_values, weight.unsqueeze(0)))
+
+            if self.file_name == 'defaultName': pdb.set_trace()
+            weights_values = weights_values.squeeze(2)
             attn_weights = F.softmax(weights_values, dim=1)
             # these weights are then applied to the 'hidden features' (multiplied together)
-            attn_applied = attn_weights * fc3_out
+            attn_applied = attn_weights.unsqueeze(-1) * fc3_by_full_example
             # get the sum of all weighted features to produce context c
             context = torch.sum(attn_applied, dim=1)
-            prediction = context
-######################################################################################
+            prediction = self.class_layer_wAttn(context)
+            ##########################################################################
+
         else:
-            prediction = self.classify_layer(xfc3)
+            #  flatten for proceeding classification fc layer
+            flattened_fc3_full_example = fc3_by_full_example.view(fc3_by_full_example.shape[0], fc3_by_full_example.shape[1]*fc3_by_full_example.shape[2]) 
+            prediction = self.class_layer_noAttn(flattened_fc3_full_example)
         return prediction
 
 
