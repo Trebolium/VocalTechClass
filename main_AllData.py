@@ -88,20 +88,9 @@ with open(results_csv, "w") as csvResults:
         # sort directory melspec by name and generate indices for training set and test set
         #if config.split_by == 'singer':
         print('here1', time.time() - seconds)
-        m_list = ['m1_','m2_','m3_','m4_','m5_','m6_','m7_','m8_','m9_','m10_','m11_']
-        f_list = ['f1_','f2_','f3_','f4_','f5_','f6_','f7_','f8_','f9_']
+        all_singers_list = ['m1_','m2_','m3_','m4_','m5_','m6_','m7_','m8_','m9_','m10_','m11_','f1_','f2_','f3_','f4_','f5_','f6_','f7_','f8_','f9_']
         random.seed(config.seed)
-        random.shuffle(m_list)
-        random.shuffle(f_list)
-        train_m_list, test_m_list = (m_list[:-3],m_list[-3:])
-        train_f_list, test_f_list = (f_list[:-2],f_list[-2:])
-        train_list = train_m_list + train_f_list
-        test_list = test_m_list + test_f_list
-        print('train_list', train_list)
-        print('test_list', test_list)
 
-
-        config.test_list = ' '.join(test_list)
         """ its too complex to write a universal specPathDataset with different subfolder structures.
         More ignostic to automatically upload from one shallow directory, and sort from there using the filename analysis.
         Make sure the dataset is fed data in same order as sorted fileList"""
@@ -122,20 +111,11 @@ with open(results_csv, "w") as csvResults:
         train_indices_list = []
         test_indices_list = []
 
-        for fileName_idx, fileName in enumerate(fileList):
-            for substring in train_list:
-                if substring in fileName:
-                    train_indices_list.append(fileName_idx)
-            for substring in test_list:
-                if substring in fileName:
-                    test_indices_list.append(fileName_idx)
         if config.short==True:
-            train_indices_list = train_indices_list[:8]
-            test_indices_list = test_indices_list[:4]
             config.batch_size = 2
             config.epochs=2
             config.num_chunks=2
-
+        
 #        now = datetime.now()
 #        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
         if config.file_name == 'defaultName' or config.file_name == 'deletable':
@@ -146,10 +126,11 @@ with open(results_csv, "w") as csvResults:
         tech_singer_labels = []
         pred_target_labels = []
         """https://stackoverflow.com/questions/50544730/how-do-i-split-a-custom-dataset-into-training-and-test-datasets"""
-        train_sampler = SubsetRandomSampler(train_indices_list) 
-        test_sampler = SubsetRandomSampler(test_indices_list)   
-        train_loader = DataLoader(dataset, batch_size=config.batch_size, sampler=train_sampler, shuffle=False, drop_last=False)
-        test_loader = DataLoader(dataset, batch_size=config.batch_size, sampler=test_sampler, shuffle=False, drop_last=False)
+#        train_sampler = SubsetRandomSampler(train_indices_list) 
+#        test_sampler = SubsetRandomSampler(test_indices_list)   
+        pdb.set_trace()
+        train_loader = DataLoader(dataset, batch_size=config.batch_size, shuffle=True, drop_last=False)
+#        test_loader = DataLoader(dataset, batch_size=config.batch_size, sampler=test_sampler, shuffle=False, drop_last=False)
         vt_classer = VoiceTechniqueClassifier(config)
 
         #example_data, example_targets, ex_singer_ids = iter(test_loader).next()
@@ -160,10 +141,10 @@ with open(results_csv, "w") as csvResults:
         else: previous_epochs = 0
         for epoch in range(previous_epochs+1, previous_epochs+config.epochs+1):
             # history_list gets extended while inside these functions
-            train_pred_target_labels, train_tech_singer_labels = vt_classer.infer(epoch, train_loader, history_list, writer, len(train_indices_list), 'train')
-            val_pred_target_labels, val_tech_singer_labels = vt_classer.infer(epoch, test_loader, history_list, writer, len(test_indices_list), 'test')
-            tech_singer_labels.append((train_tech_singer_labels, val_tech_singer_labels)) 
-            pred_target_labels.append((train_pred_target_labels, val_pred_target_labels)) 
+            train_pred_target_labels, train_tech_singer_labels = vt_classer.infer(epoch, train_loader, history_list, writer, len(dataset), 'train')
+            #val_pred_target_labels, val_tech_singer_labels = vt_classer.infer(epoch, test_loader, history_list, writer, len(test_indices_list), 'test')
+            tech_singer_labels.append((train_tech_singer_labels)) 
+            pred_target_labels.append((train_pred_target_labels)) 
             writer.flush()
 
         writer.close() 

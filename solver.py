@@ -54,7 +54,7 @@ class VoiceTechniqueClassifier:
                 x_data = x_data.to(self.device, dtype=torch.float)
                 y_data = y_data.to(self.device)
 
-                if self.config.file_name == 'defaultName': pdb.set_trace()
+                #if self.config.file_name == 'defaultName': pdb.set_trace()
 
                 if self.config.model == 'luo' or self.config.model == 'choi_k2c2':
                     #tensors must be reshaped so that they have 3 dims
@@ -113,6 +113,7 @@ class VoiceTechniqueClassifier:
             acc_hist=history_list[1]
             pred_target_labels, tech_singer_labels, accum_loss, accum_corrects = batch_iterate()
         elif mode == 'test':
+            best_acc = 0
             self.model.eval()
             loss_hist=history_list[2]
             acc_hist=history_list[3]
@@ -138,21 +139,22 @@ class VoiceTechniqueClassifier:
         print('Epoch {} Loss: {:.4f}, Acc: {:.4f} Corrects:{:.4f}'.format(epoch, epoch_loss, epoch_accuracy, accum_corrects))
         loss_hist.append(epoch_loss)
         acc_hist.append(epoch_accuracy)
-        save_path = './results/' +self.config.file_name +'/' +str(epoch) +'Epoch_checkpoint.pth.tar'
-        if mode == 'test':
+        save_path = './results/' +self.config.file_name +'/best_epoch_checkpoint.pth.tar'
+        if mode == 'test' and epoch_accuracy > best_acc:
+            best_acc = epoch_accuracy
+            #best_model_wts = copy.deepcopy(model.state_dict())
             self.save_checkpoints(epoch, epoch_loss, epoch_accuracy, save_path)
             #pdb.set_trace()
 
         return pred_target_labels, tech_singer_labels
 
     def save_checkpoints(self, epoch, loss, accuracy, save_path):
-        if epoch == self.config.epochs or epoch % self.config.ckpt_freq == 0:
-            print('saving model')
-            checkpoint = {'model_state_dict' : self.model.state_dict(),
-                'optimizer_state_dict': self.optimizer.state_dict(),
-                'epoch': epoch,
-                'loss': loss,
-                'accuracy': accuracy}
-            torch.save(checkpoint, save_path)
-            print('model saved!')
+        print('saving model')
+        checkpoint = {'model_state_dict' : self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'epoch': epoch,
+            'loss': loss,
+            'accuracy': accuracy}
+        torch.save(checkpoint, save_path)
+        print('model saved!')
 

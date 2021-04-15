@@ -24,6 +24,7 @@ class pathSpecDataset(Dataset):
         dir_name, _, fileList = next(os.walk(self.spmel_dir))
         fileList = sorted(fileList)
         dataset = []
+        counter = 0
         for file_name in fileList:
             if file_name.endswith('.npy'):
                 spmel = np.load(os.path.join(dir_name, file_name))
@@ -31,10 +32,10 @@ class pathSpecDataset(Dataset):
                     if style_name in file_name:
                         for singer_idx, singer_name in enumerate(singer_names):
                             if singer_name in file_name:
+                                counter += 1
                                 dataset.append((spmel, style_idx, singer_idx))
                                 break
                         break
-
         self.dataset = dataset
         self.num_specs = len(dataset)
 
