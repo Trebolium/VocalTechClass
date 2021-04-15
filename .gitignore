@@ -7,9 +7,5 @@
 /runs
 /testRuns
 /__pycache__
-/
-*.swp
-*.swo
-*.swn
-*_data_numpy*
+*.sw*
 *.pyc
