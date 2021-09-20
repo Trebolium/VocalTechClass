@@ -121,7 +121,9 @@ with open(results_csv, "w") as csvResults:
         fileList = [os.path.basename(x) for x in file_path_list]
         train_indices_list = []
         test_indices_list = []
-
+    
+        # get sorted list of names from sorted and compare these to train/test singer_ids
+        # if a match, add the idx to the sampler for split DataLoaders
         for fileName_idx, fileName in enumerate(fileList):
             for substring in train_list:
                 if substring in fileName:
@@ -145,6 +147,7 @@ with open(results_csv, "w") as csvResults:
 
         tech_singer_labels = []
         pred_target_labels = []
+        pdb.set_trace()
         """https://stackoverflow.com/questions/50544730/how-do-i-split-a-custom-dataset-into-training-and-test-datasets"""
         train_sampler = SubsetRandomSampler(train_indices_list) 
         test_sampler = SubsetRandomSampler(test_indices_list)   
