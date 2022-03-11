@@ -1,22 +1,35 @@
 # VocalTechClass
 
-ensure you have a virtual environment that has the following installed:
-torch,
-librosa,
-soundfile,
-pydub,
-PyYAML,
-scipy,
-numpy,
-matplotlib,
-tensorboard
+## About this Repo
 
-`python main.py` should train the model using the attention mechanism automatically. However the attention mechanism is not complete, as I am unsure what to do with the context vector thats been generated.
-The attention mechanism can be viewed in `models.py`
+This repository contains a CRNN neueral network with an appended attention mechanism, designed to detect features that assist in classifying singing techniques in recordings singing clips. Our published paper [Zero-shot Singing Voice Conversion](https://cmmr2021.github.io/proceedings/pdffiles/cmmr2021_26.pdf) provides an overview of the architecture. This network allows us to generate singing-technique descriminative embeddings that can be used for downstream tasks where disentangled singing-technique information is required. 
 
-`python main.py --use_attention=false` should train the network and bypass the attention mechanism. However this network only scores roughly 38% accuracy, while in the original paper [Exploratory Study on Perceptual Spaces of the Singing Voice](https://ieeexplore-ieee-org.ezproxy.library.qmul.ac.uk/abstract/document/9054582), 90% accuracy is achieved.
+## Directories
 
-I am currently attempting to learn why my classification score of 38% is so low, and hoping to find out if I have correctly implemented the attention mechanism. Any suggestions?
+The provided dataset `example_ds` is used by default, and represents a minimal example of the required directory tree structure for a dataset, as well as the features themselves (mel-spectrograms). It is advisable to use the [VocalSet dataset](https://zenodo.org/record/1203819#.YiszFRDP0RY) as this is one of the few datasets that provide singing technique information.
 
-Thanks,
-Brendan
+The directory 'results' is created automatically if it does not exists. When `--file_name` is specified to be anything other than 'DefaultName', a new directory with that name is stored in the 'results' directory, where affiliated model-specific data will be stored.
+
+Using the `--load_ckpt` attribute allows you to start training with saved weights from a previous session.
+
+## Installation
+
+To run the network, please ensure you have a virtual environment that has the following and their dependancies installed:
+
+torch==1.8.1
+librosa==0.8.0
+soundfile==0.10.3.post1,
+pydub==0.24.1,
+PyYAML==5.3.1,
+scipy==1.5.4,
+numpy==1.19.4,
+matplotlib==3.3.3,
+tensorboard==2.4.1,
+tensorboard-plugin-wit==1.8.0
+
+## Training
+
+
+Running `python main.py` will train the model using the toy example dataset. Do explore the argument attributes to consider using non-default hyperparameters to experiment.
+
+Using the full VocalSet dataset (trimmed to include the 5 techniques we're interested in), we replicated the basic CNN network described in VocalSet's associated paper, and scored 57%. However with this customly designed network, we can achieve up to 86% accuracy. We hypothesize that higher scores could not be achieved due to categorical leakage among classes, the size of the dataset, and several performance consistency issues detailed in our paper.
