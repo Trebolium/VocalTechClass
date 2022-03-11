@@ -17,11 +17,11 @@ class VoiceTechniqueClassifier:
         if config.model == 'wilkins':
             self.model = models.WilkinsAudioCNN(config)
         elif config.model == 'choi_k2c2':
-            with open(config.data_dir +'/spmel_params.yaml') as File:
+            with open(config.data_dir +'/feat_params.yaml') as File:
                 spmel_params = yaml.load(File, Loader=yaml.FullLoader)
             self.model = models.Choi_k2c2(config, spmel_params)
         elif config.model == 'luo':
-            with open(config.data_dir +'/spmel_params.yaml') as File:
+            with open(config.data_dir +'/feat_params.yaml') as File:
                 spmel_params = yaml.load(File, Loader=yaml.FullLoader)
             self.model = models.Luo2019AsIs(config, spmel_params)
 
@@ -30,7 +30,6 @@ class VoiceTechniqueClassifier:
             g_checkpoint = torch.load(self.config.load_ckpt)
             self.model.load_state_dict(g_checkpoint['model_state_dict'])
             self.optimizer.load_state_dict(g_checkpoint['self.optimizer_state_dict'])
-            # pdb.set_trace()
             # fixes tensors on different devices error
             # https://github.com/pytorch/pytorch/issues/2830
             for state in self.optimizer.state.values():
@@ -50,26 +49,16 @@ class VoiceTechniqueClassifier:
             accum_loss = 0
             accum_corrects = 0
             for batch_num, (x_data, y_data, singer_id)  in enumerate(loader):
-
+                
                 x_data = x_data.to(self.device, dtype=torch.float)
                 y_data = y_data.to(self.device)
-
-                #if self.config.file_name == 'defaultName': pdb.set_trace()
 
                 if self.config.model == 'luo' or self.config.model == 'choi_k2c2':
                     #tensors must be reshaped so that they have 3 dims
                     x_data = x_data.view(x_data.shape[0] * x_data.shape[1], x_data.shape[2], x_data.shape[3])
-#                    for i, batch in enumerate(x_data):
-#                        if i == 0:
-#                            reshaped_batches = batch
-#                        else:
-#                            reshaped_batches = torch.cat((reshaped_batches, batch))
-#                    x_data = reshaped_batches
+
                 if mode == 'test' and epoch == self.config.epochs and batch_num == 0:
                     np.save('results/' +self.config.file_name +f'/x_data_e{epoch}_b{batch_num}', x_data.cpu().detach().numpy())
-                    #np.save('results/' +self.config.file_name +f'/y_data_e{epoch}_b{batch_num}', y_data.cpu().detach().numpy())
-                    #np.save('results/' +self.config.file_name +f'singer_id_e{epoch}_b{batch_num}', singer_id.cpu().detach().numpy())
-
                 prediction = self.model(x_data)
                 loss = nn.functional.cross_entropy(prediction, y_data) 
                 _, predicted = torch.max(prediction.data, 1)
@@ -102,9 +91,7 @@ class VoiceTechniqueClassifier:
                     tech_singer_labels = np.vstack((tech_singer_labels, tmp))
                     tmp = np.hstack((predicted.unsqueeze(1).cpu().detach().numpy(), y_data))
                     pred_target_labels = np.vstack((pred_target_labels, tmp))
-                #if mode =='test':
-                    #pdb.set_trace()
-                    
+
             return pred_target_labels, tech_singer_labels, accum_loss, accum_corrects
         
         if mode == 'train':

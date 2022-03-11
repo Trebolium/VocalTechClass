@@ -180,7 +180,7 @@ class Choi_k2c2(nn.Module):
         self.final_embedding = 256
         self.latent_dim = 64
         self.num_classes=6 # number of classes
-        self.n_mels = spmel_params['n_mels']
+        self.n_mels = spmel_params['num_feats']
         melsteps_per_second = spmel_params['sr'] / spmel_params['hop_size']
         self.window_size = math.ceil(config.chunk_seconds * melsteps_per_second)
         self.maxpool_factor_height = int(self.n_mels/2/3/4)

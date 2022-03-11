@@ -1,7 +1,39 @@
-import csv, pickle, os, pdb
+import csv, pickle, random, os, json, pdb
 import numpy as np
 import matplotlib.pyplot as plt
 
+
+# convert string input into bool
+def str2bool(v):
+    return v.lower() in ('true')
+
+
+# generate random splits for singers
+def get_vocalset_splits(this_seed):
+    m_list = ['m1_','m2_','m3_','m4_','m5_','m6_','m7_','m8_','m9_','m10_','m11_']
+    f_list = ['f1_','f2_','f3_','f4_','f5_','f6_','f7_','f8_','f9_']
+    random.seed(this_seed)
+    random.shuffle(m_list)
+    random.shuffle(f_list)
+    train_m_list, test_m_list = (m_list[:-3],m_list[-3:])
+    train_f_list, test_f_list = (f_list[:-2],f_list[-2:])
+    train_list = train_m_list + train_f_list
+    test_list = test_m_list + test_f_list
+    return train_list, test_list
+
+
+# generate random hyperparameters for searching best configurations
+def random_params(config):
+    config.lr = random.uniform(1e-6, 1e-2)
+    config.n_mels = int(random.uniform(10, 79))
+    config.dropout = random.uniform(0, 0.8)
+    config.batch_size = random.randit(0, 4)
+    config.reg = random.uniform(0, 0.01),
+    config.chunk_seconds = int(random.uniform(23, 82))
+    return config
+
+
+# save history of predictions and metrics as graphs
 def saveHistory(history_list, dir_path, string_config, tech_singer_labels, pred_target_labels):
 
     upper_lim = 0.5
@@ -73,3 +105,27 @@ def saveHistory(history_list, dir_path, string_config, tech_singer_labels, pred_
         pickle.dump(tech_singer_labels, handle)
     with open(dir_path +'/pred_target_labels_log.pkl', 'wb') as handle:
         pickle.dump(pred_target_labels, handle)
+
+
+# prepare directories for files affiliated with this model instance
+def assert_dirs(config, results_dir):
+    if not os.path.exists(results_dir):
+        os.mkdir(results_dir)
+    file_name_dir = os.path.join(results_dir, config.file_name)
+    if not os.path.exists(file_name_dir):
+        os.mkdir(file_name_dir)
+    return file_name_dir
+
+
+# analyze configuration parameters to change if necessary
+def setup_config(config):
+    if config.iteration>1:
+        config = random_params(config)
+    if config.load_ckpt != '':
+        previous_epochs = int(re.findall('\d+', config.load_ckpt)[0])
+    else:
+        previous_epochs = 0
+    # convert config object to string
+    string_config = json.dumps(vars(config))[1:-1]
+    string_config = ''.join(e for e in string_config if e.isalnum())
+    return string_config, previous_epochs, config
