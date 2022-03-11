@@ -9,3 +9,5 @@
 /__pycache__
 *.sw*
 *.pyc
+vte_model.py
+audio_path_list.pkl

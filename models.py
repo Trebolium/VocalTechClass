@@ -1,7 +1,5 @@
-from torch.nn import Linear, BatchNorm1d, Parameter
 import torch, math, pdb
 import torch.nn as nn
-import torch.nn.functional as F
 
 #remove this comment
 class Luo2019AsIs(nn.Module):
@@ -63,17 +61,6 @@ class Luo2019AsIs(nn.Module):
         else:
             lstm_mult = 1
 
-#        fc3_layers = []
-#        for i in range(self.chunk_num):
-#            fc3_layer = nn.Sequential(
-#                nn.Linear(fc_layer3_dim
-#                    ,self.latent_dim)
-#                ,nn.BatchNorm1d(self.latent_dim)
-#                ,nn.ReLU()
-#                )
-#            fc3_layers.append(fc3_layer)
-#        self.fc_by_chunk = nn.ModuleList(fc3_layers)
-
         fc_layer3_dim = 256 * lstm_mult
         self.fc_layer3 = nn.Sequential(
             nn.Linear(fc_layer3_dim
@@ -87,18 +74,9 @@ class Luo2019AsIs(nn.Module):
         self.lstm = nn.LSTM(256, 256, self.lstm_num, batch_first=True, bidirectional=self.is_blstm)
 
         """ Attention Layer"""
-##############################################################################
         # Make a 1layer FFNN for each weight in the network
-
         self.feat2weight_ffnn = nn.Linear(self.latent_dim, 1)
-#        feature_to_weight_functions = []
-#        for i in range(self.chunk_num):
-#            # for each value of h_j, create a corresponding weight
-#            hiddenV2weightV_layer = nn.Linear(self.latent_dim, self.latent_dim)
-#            feature_to_weight_functions.append(hiddenV2weightV_layer)
-#        self.f2w_functions = nn.ModuleList(feature_to_weight_functions)
 
-##############################################################################
 
         """ Classification Layer """
 
@@ -111,7 +89,7 @@ class Luo2019AsIs(nn.Module):
             )
 
     def forward(self, x):
-        if self.file_name == 'defaultName': pdb.set_trace()
+
         x = x.transpose(-1,-2)
         xc1 = self.conv_layer1(x)
         xc2 = self.conv_layer2(xc1)
@@ -132,9 +110,6 @@ class Luo2019AsIs(nn.Module):
         # group by tensor again so that attention mechanism can consider all chunks for context vector
         fc3_by_example = fc3_by_chunk.view(fc3_by_chunk.shape[0]//self.chunk_num, self.chunk_num, fc3_by_chunk.shape[1])
 
-        if self.file_name == 'defaultName': pdb.set_trace()
-        # at this point the tensor is no longer temporal, so why is attention used?
-
         if self.use_attention == True:
             """Simplified Attention mechanism - http://arxiv.org/abs/1512.08756"""
             ###########################################################################
@@ -145,20 +120,17 @@ class Luo2019AsIs(nn.Module):
                 else:
                     weights_values = torch.cat((weights_values, weight.unsqueeze(0)))
 
-            if self.file_name == 'defaultName': pdb.set_trace()
             weights_values = weights_values.squeeze(2)
             attn_weights = F.softmax(weights_values, dim=1)
-            # these weights are then applied to the 'hidden features' (multiplied together)
+            # these weights are then applied to hidden features (multiplied together)
             attn_applied = attn_weights.unsqueeze(-1) * fc3_by_example
             # get the sum of all weighted features to produce context c
             context = torch.sum(attn_applied, dim=1)
             prediction = self.class_layer_wAttn(context)
             ##########################################################################
-
         else:
             #  flatten for proceeding classification fc layer
             flattened_fc3_example = fc3_by_example.view(fc3_by_example.shape[0], fc3_by_example.shape[1]*fc3_by_example.shape[2]) 
-            pdb.set_trace()
             prediction = self.class_layer_noAttn(flattened_fc3_example)
         return prediction
 
@@ -267,20 +239,20 @@ class Choi_k2c2(nn.Module):
 
         """ Attention Layer"""
         # Make a 1layer FFNN for each weight in the network
-        #self.feat2weight_ffnn = nn.Linear(self.latent_dim, 1)
+        self.feat2weight_ffnn = nn.Linear(self.latent_dim, 1)
 
         """ Classification Layer """
 
-#        self.class_layer_wAttn = nn.Sequential(
-#            nn.Linear(self.latent_dim, self.num_classes)
-#            )
+        self.class_layer_wAttn = nn.Sequential(
+           nn.Linear(self.latent_dim, self.num_classes)
+           )
 
         self.class_layer_noAttn = nn.Sequential(
             nn.Linear(self.final_embedding, self.num_classes)
             )
 
     def forward(self, x): 
-        if self.file_name == 'defaultName': pdb.set_trace()
+
         x0 = x.transpose(-1,-2)
         x0 = x0.unsqueeze(1) # for 2D convolution
         xc1 = self.conv_layer1(x0)
@@ -304,48 +276,34 @@ class Choi_k2c2(nn.Module):
         fc3_by_chunk = self.fc_layer3(lstm_outs_by_chunk)
         # group by tensor again so that attention mechanism can consider all chunks for context vector
         fc3_by_example = fc3_by_chunk.view(fc3_by_chunk.shape[0]//self.chunk_num, self.chunk_num, fc3_by_chunk.shape[1])
-        if self.file_name == 'defaultName':
-            print('x.shape', x.shape)
-            print('x0.shape', x0.shape)
-            print('xc1.shape', xc1.shape)
-            print('xc2.shape', xc2.shape)
-            print('xc3.shape', xc3.shape)
-            print('xc4.shape', xc4.shape)
-            print('xc4_squeezed.shape', xc4_squeezed.shape)
-            print('xfc2.shape', xfc2.shape)
-            print('xfc2_by_example.shape', xfc2_by_example.shape)
-            print('lstm_outs.shape', lstm_outs.shape)
-            print('lstm_outs_by_chunk.shape', lstm_outs_by_chunk.shape)
-            print('fc3_by_chunk', fc3_by_chunk.shape)
-            print('fc3_by_example.shape', fc3_by_example.shape)
-            pdb.set_trace()
+
         """Working on Attention Layer bit"""
-#        if self.use_attention == True:
-######################################################################################
-#            # num_examples not always batch size, if Dataloader's drop_last=true
-#            num_examples = int(xc2.shape[0]/self.chunk_num)
-#            # this 1layer FFNN takes the hidden state produced from the lstm layer
-#            # and learns a function to convert it into the ideal weights
-#            for i in range(num_examples):
-#                weight = self.feat2weight_ffnn(fc3_by_example[i])
-#                if i == 0:
-#                    weights_values = weight.unsqueeze(0)
-#                else:
-#                    weights_values = torch.cat((weights_values, weight.unsqueeze(0)))
-#
-#            if self.file_name == 'defaultName': pdb.set_trace()
-#            weights_values = weights_values.squeeze(2)
-#            attn_weights = F.softmax(weights_values, dim=1)
-#            # these weights are then applied to the 'hidden features' (multiplied together)
-#            attn_applied = attn_weights.unsqueeze(-1) * fc3_by_example
-#            # get the sum of all weighted features to produce context c
-#            context = torch.sum(attn_applied, dim=1)
-#            prediction = self.class_layer_wAttn(context)
-#            ##########################################################################
-#        else:
-        flattened_fc3_example = fc3_by_example.view(fc3_by_example.shape[0], fc3_by_example.shape[1]*fc3_by_example.shape[2])
-        fc4_out = self.fc_layer4(flattened_fc3_example)
-        prediction = self.class_layer_noAttn(fc4_out)
+        if self.use_attention == True:
+#####################################################################################
+            # num_examples not always batch size, if Dataloader's drop_last=true
+            num_examples = int(xc2.shape[0]/self.chunk_num)
+            # this 1layer FFNN takes the hidden state produced from the lstm layer
+            # and learns a function to convert it into the ideal weights
+            for i in range(num_examples):
+                weight = self.feat2weight_ffnn(fc3_by_example[i])
+                if i == 0:
+                    weights_values = weight.unsqueeze(0)
+                else:
+                    weights_values = torch.cat((weights_values, weight.unsqueeze(0)))
+
+            weights_values = weights_values.squeeze(2)
+            attn_weights = F.softmax(weights_values, dim=1)
+            # these weights are then applied to the 'hidden features' (multiplied together)
+            attn_applied = attn_weights.unsqueeze(-1) * fc3_by_example
+            # get the sum of all weighted features to produce context c
+            context = torch.sum(attn_applied, dim=1)
+            prediction = self.class_layer_wAttn(context)
+            ##########################################################################
+        else:
+            flattened_fc3_example = fc3_by_example.view(fc3_by_example.shape[0], fc3_by_example.shape[1]*fc3_by_example.shape[2])
+            fc4_out = self.fc_layer4(flattened_fc3_example)
+            prediction = self.class_layer_noAttn(fc4_out)
+
         return prediction
 
 

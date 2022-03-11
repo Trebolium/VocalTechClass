@@ -1,7 +1,7 @@
-from utils import saveHistory, get_vocalset_splits, str2bool, assert_dirs, random_params, setup_config
+from utils import saveHistory, get_vocalset_splits, str2bool, assert_dirs, random_params, setup_config, recursive_file_retrieval
 from solver import VoiceTechniqueClassifier
 from data import pathSpecDataset, audioSnippetDataset
-import pickle, argparse, re, pdb, json, yaml, random, time, os, csv, sys
+import pickle, argparse, yaml, os, csv, sys
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader, SubsetRandomSampler
@@ -48,7 +48,6 @@ if __name__ == "__main__":
     
     # prepare csv file and 
     results_csv = os.path.join(results_dir, config.file_name, 'RandomSearchReport.csv')
-    pdb.set_trace()
     with open(results_csv, "w") as csvResults:
         csv_writer = csv.writer(csvResults)
         header = 'Title','lr','melNum','dropout','batchSize','reg','windowSize','bestEpoch','Loss','Acc'
@@ -59,14 +58,14 @@ if __name__ == "__main__":
 
             train_list, test_list = get_vocalset_splits(1)
             config.test_list = ' '.join(test_list)
-            string_config, previous_epochs, config = setup_config(config) #create new h_params in this function
+            string_config, previous_epochs, config = setup_config(config, file_name_dir) #create new h_params in this function
 
             # generate dataset and file_paths
             if config.model == 'wilkins': # get list from pickle object if using Wilkins' proposed network
                 config.data_dir = './audio_path_list.pkl'
                 dataset = audioSnippetDataset(config)
                 fileList = pickle.load(open(config.data_dir, 'rb'))
-            else: # if not Wilkins, assume to be using mel-spectrogram features
+            else: # if not Wilkins' network, assume to be using mel-spectrogram features
                 with open(config.data_dir +'/feat_params.yaml') as File:
                     spmel_params = yaml.load(File, Loader=yaml.FullLoader)
                 _, fileList = recursive_file_retrieval(config.data_dir)
@@ -91,9 +90,10 @@ if __name__ == "__main__":
             test_loader = DataLoader(dataset, batch_size=config.batch_size, sampler=test_sampler, shuffle=False, drop_last=False)
             vt_classer = VoiceTechniqueClassifier(config)
 
+            # history_list records predictions, targets, accuracy, loss, and stored for later analysis
             history_list=[[], [], [], []]
+            # iterate through train and test set cyclically
             for epoch in range(previous_epochs+1, previous_epochs+config.epochs+1):
-                # history_list gets extended while inside these functions
                 train_pred_target_labels, train_tech_singer_labels = vt_classer.infer(epoch, train_loader, history_list, writer, len(train_indices_list), 'train')
                 val_pred_target_labels, val_tech_singer_labels = vt_classer.infer(epoch, test_loader, history_list, writer, len(test_indices_list), 'test')
                 tech_singer_labels.append((train_tech_singer_labels, val_tech_singer_labels)) 
@@ -101,10 +101,9 @@ if __name__ == "__main__":
                 writer.flush()
 
             writer.close() 
-            # model_file_name = os.path.basename(__file__)[:-3]
-            
+
+
             saveHistory(history_list, file_name_dir, string_config, tech_singer_labels, pred_target_labels)
-            #invalid terms just
             bestLoss = history_list[0][0]
 
             for idx, loss in enumerate(history_list[0]):
@@ -113,9 +112,6 @@ if __name__ == "__main__":
                     bestEpoch=idx
             
             bestAcc = history_list[3][bestEpoch]
-            
-            with open(file_name_dir +'/config_params.pkl','wb') as File:
-                pickle.dump(config, File) 
             
             csv_writer.writerow((string_config, config.lr, config.n_mels, config.dropout, config.batch_size, config.reg, config.chunk_seconds, bestEpoch, bestLoss, bestAcc))
     csvResults.close(

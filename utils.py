@@ -1,6 +1,33 @@
-import csv, pickle, random, os, json, pdb
+import csv, pickle, random, os, json, torch, pdb
 import numpy as np
 import matplotlib.pyplot as plt
+
+
+# returns a list of filepaths collected from a parent directory and all subdirectories
+def recursive_file_retrieval(parent_path):
+    file_path_list = []
+    dir_list = []
+    parent_paths = [parent_path]
+    more_subdirs = True
+    while more_subdirs == True:
+        subdir_paths = [] 
+        for i, parent_path in enumerate(parent_paths):
+            dir_list.append(parent_path)
+            r,dirs,files = next(os.walk(parent_path)) 
+            for f in files:
+                file_path_list.append(os.path.join(r,f))
+            # if there are more subdirectories
+            if len(dirs) != 0:
+                for d in dirs:
+                    subdir_paths.append(os.path.join(r,d))
+                # if we've finished going through subdirectories (each parent_path), stop that loop
+            if i == len(parent_paths)-1:
+                # if loop about to finish, change parent_paths content and restart loop
+                if len(subdir_paths) != 0:
+                    parent_paths = subdir_paths
+                else:
+                    more_subdirs = False
+    return dir_list, file_path_list
 
 
 # convert string input into bool
@@ -117,8 +144,8 @@ def assert_dirs(config, results_dir):
     return file_name_dir
 
 
-# analyze configuration parameters to change if necessary
-def setup_config(config):
+# analyze configuration parameters to change if necessary, save and return config
+def setup_config(config, file_name_dir):
     if config.iteration>1:
         config = random_params(config)
     if config.load_ckpt != '':
@@ -128,4 +155,7 @@ def setup_config(config):
     # convert config object to string
     string_config = json.dumps(vars(config))[1:-1]
     string_config = ''.join(e for e in string_config if e.isalnum())
+    with open(file_name_dir +'/config_params.pkl','wb') as File:
+        pickle.dump(config, File) 
     return string_config, previous_epochs, config
+    

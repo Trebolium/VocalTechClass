@@ -1,6 +1,5 @@
-fmax: 7600
+fft_size: 1024
 fmin: 90
-frame_size: 400
-hop_size: 160
-num_feats: 40
+hop_size: 256
+num_feats: 80
 sr: 16000

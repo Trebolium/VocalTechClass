@@ -1,18 +1,17 @@
-import models, utils
-import torch
+import models
+import torch, yaml, pdb
 from torch import optim
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import numpy as np
-import random, pdb, math, yaml
+# from utils import save_checkpoints
 
 class VoiceTechniqueClassifier:
     def __init__(self, config):
-        """ initialise configurations"""
+
         self.config = config
         self.device = torch.device(f'cuda:{self.config.which_cuda}' if torch.cuda.is_available() else 'cpu')
-        #melsteps_per_second = spmel_params['sr'] / spmel_params['hop_size']
-        #self.window_size = math.ceil(config.chunk_seconds * melsteps_per_second)
+        self.save_path = './results/' +self.config.file_name +'/best_epoch_checkpoint.pth.tar'
 
         if config.model == 'wilkins':
             self.model = models.WilkinsAudioCNN(config)
@@ -26,12 +25,12 @@ class VoiceTechniqueClassifier:
             self.model = models.Luo2019AsIs(config, spmel_params)
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=config.lr, weight_decay=config.reg)
+
+        # load singing technique classifier model, checkpoint if necessary
         if self.config.load_ckpt != '':
             g_checkpoint = torch.load(self.config.load_ckpt)
             self.model.load_state_dict(g_checkpoint['model_state_dict'])
             self.optimizer.load_state_dict(g_checkpoint['self.optimizer_state_dict'])
-            # fixes tensors on different devices error
-            # https://github.com/pytorch/pytorch/issues/2830
             for state in self.optimizer.state.values():
                 for k, v in state.items():
                     if isinstance(v, torch.Tensor):
@@ -41,10 +40,24 @@ class VoiceTechniqueClassifier:
             self.previous_ckpt_iters = 0 
         self.model.to(self.device)
 
+    # save model checkpoint data
+    def save_checkpoints(self, epoch, loss, accuracy):
+        print('saving model')
+        checkpoint = {'model_state_dict' : self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'epoch': epoch,
+            'loss': loss,
+            'accuracy': accuracy}
+        torch.save(checkpoint, self.save_path)
+        print('model saved!')
+
+
+    # run forward and backward passes for train and test epochs
     def infer(self, epoch, loader, history_list, writer, examples_per_epoch, mode):
 
         def batch_iterate():
 
+            # initiate params for this epoch
             print(f'=====> {mode}: ')
             accum_loss = 0
             accum_corrects = 0
@@ -56,21 +69,23 @@ class VoiceTechniqueClassifier:
                 if self.config.model == 'luo' or self.config.model == 'choi_k2c2':
                     #tensors must be reshaped so that they have 3 dims
                     x_data = x_data.view(x_data.shape[0] * x_data.shape[1], x_data.shape[2], x_data.shape[3])
-
-                if mode == 'test' and epoch == self.config.epochs and batch_num == 0:
-                    np.save('results/' +self.config.file_name +f'/x_data_e{epoch}_b{batch_num}', x_data.cpu().detach().numpy())
                 prediction = self.model(x_data)
+
+                # calculate loss
                 loss = nn.functional.cross_entropy(prediction, y_data) 
                 _, predicted = torch.max(prediction.data, 1)
                 corrects = (predicted == y_data).sum().item()
                 accum_corrects += corrects
                 accuracy = corrects / y_data.shape[0]
                 accum_loss += loss.item()
+
+                # backprop
                 if mode == 'train':
                     self.optimizer.zero_grad()
                     loss.backward()
                     self.optimizer.step()
 
+                # Print metric within epoch
                 print('Epoch {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tAcc: {:.6f}\tCorrect: {:.6f}'.format(
                     # inaccurate reading here if on last batch and drop_last=False
                     epoch,
@@ -81,6 +96,7 @@ class VoiceTechniqueClassifier:
                     accuracy,
                     corrects)) # calculates average loss per example
                 
+                # formulate data for saving to history_lists
                 y_data = np.expand_dims(y_data.cpu(),1)
                 singer_id = np.expand_dims(singer_id.cpu(),1)
                 if batch_num == 0:
@@ -94,6 +110,7 @@ class VoiceTechniqueClassifier:
 
             return pred_target_labels, tech_singer_labels, accum_loss, accum_corrects
         
+        # main parent block for training and test epochs
         if mode == 'train':
             self.model.train()
             loss_hist=history_list[0]
@@ -106,42 +123,22 @@ class VoiceTechniqueClassifier:
             acc_hist=history_list[3]
             with torch.no_grad():
                 pred_target_labels, tech_singer_labels, accum_loss, accum_corrects = batch_iterate()
+
+        # calculate averaged epoch metrics print, save to tensorboard, print, update metric history
         epoch_loss = accum_loss / examples_per_epoch
         epoch_accuracy = accum_corrects / examples_per_epoch
-        if self.config.model == 'wilkins':
-            #writer.add_scalar(f"Number Correct/{mode}", accum_corrects, epoch)
-            writer.add_scalar(f"Accuracy/{mode}", epoch_accuracy, epoch)
-            writer.add_scalar(f"Loss/{mode}", epoch_loss, epoch)
-            writer.add_histogram(f"layer_seq1.bias", self.model.layer_seq1[0].bias, epoch)
-            writer.add_histogram(f"layer_seq1.weight", self.model.layer_seq1[0].weight, epoch)
-            writer.add_histogram(f"layer_seq1.weight.grad", self.model.layer_seq1[0].weight.grad, epoch) 
-        else:
-            #writer.add_scalar(f"Number Correct/{mode}", accum_corrects, epoch)
-            writer.add_scalar(f"Accuracy/{mode}", epoch_accuracy, epoch)
-            writer.add_scalar(f"Loss/{mode}", epoch_loss, epoch)
-#            writer.add_histogram(f"enc_convs_conv_layer1", self.model.enc_convs[0][0].bias, epoch)
-#            writer.add_histogram(f"enc_convs_conv_layer1.weight", self.model.enc_convs[0][0].weight, epoch)
-#            writer.add_histogram(f"enc_convs_conv_layer1.weight.grad", self.model.enc_convs[0][0].weight.grad, epoch) 
-        print()
-        print('Epoch {} Loss: {:.4f}, Acc: {:.4f} Corrects:{:.4f}'.format(epoch, epoch_loss, epoch_accuracy, accum_corrects))
+        writer.add_scalar(f"Accuracy/{mode}", epoch_accuracy, epoch)
+        writer.add_scalar(f"Loss/{mode}", epoch_loss, epoch)
+        print('\nEpoch {} Loss: {:.4f}, Acc: {:.4f} Corrects:{:.4f}'.format(epoch, epoch_loss, epoch_accuracy, accum_corrects))
         loss_hist.append(epoch_loss)
         acc_hist.append(epoch_accuracy)
-        save_path = './results/' +self.config.file_name +'/best_epoch_checkpoint.pth.tar'
+
+        # save model if best accuracy
         if mode == 'test' and epoch_accuracy > best_acc:
             best_acc = epoch_accuracy
-            #best_model_wts = copy.deepcopy(model.state_dict())
-            self.save_checkpoints(epoch, epoch_loss, epoch_accuracy, save_path)
-            #pdb.set_trace()
+            self.save_checkpoints(epoch, epoch_loss, epoch_accuracy)
 
         return pred_target_labels, tech_singer_labels
 
-    def save_checkpoints(self, epoch, loss, accuracy, save_path):
-        print('saving model')
-        checkpoint = {'model_state_dict' : self.model.state_dict(),
-            'optimizer_state_dict': self.optimizer.state_dict(),
-            'epoch': epoch,
-            'loss': loss,
-            'accuracy': accuracy}
-        torch.save(checkpoint, save_path)
-        print('model saved!')
+
 
