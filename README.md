@@ -16,16 +16,16 @@ Using the `--load_ckpt` attribute allows you to start training with saved weight
 
 To run the network, please ensure you have a virtual environment that has the following and their dependancies installed:
 
-torch==1.8.1
-librosa==0.8.0
-soundfile==0.10.3.post1,
-pydub==0.24.1,
-PyYAML==5.3.1,
-scipy==1.5.4,
-numpy==1.19.4,
-matplotlib==3.3.3,
-tensorboard==2.4.1,
-tensorboard-plugin-wit==1.8.0
+* torch==1.8.1
+* ibrosa==0.8.0
+* soundfile==0.10.3.post1,
+* pydub==0.24.1,
+* PyYAML==5.3.1,
+* scipy==1.5.4,
+* numpy==1.19.4,
+* matplotlib==3.3.3,
+* tensorboard==2.4.1,
+* tensorboard-plugin-wit==1.8.0
 
 ## Training
 
