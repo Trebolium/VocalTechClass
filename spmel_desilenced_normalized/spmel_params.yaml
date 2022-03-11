@@ -1,5 +1,0 @@
-fft_size: 1024
-fmin: 90
-hop_size: 256
-n_mels: 96
-sr: 22050

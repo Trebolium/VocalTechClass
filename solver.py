@@ -4,7 +4,6 @@ from torch import optim
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import numpy as np
-# from utils import save_checkpoints
 
 class VoiceTechniqueClassifier:
     def __init__(self, config):
