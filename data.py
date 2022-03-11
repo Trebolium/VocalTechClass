@@ -2,16 +2,14 @@ from torch.utils.data import Dataset, DataLoader
 import soundfile as sf
 import numpy as np
 import os, pdb, pickle, random, math, torch, sys
-from multiprocessing import Process, Manager
-sys.path.insert(1, '/homes/bdoc3/my_utils')
-from my_os import recursive_file_retrieval
-from my_container import substring_inclusion
+from utils import recursive_file_retrieval, substring_inclusion
 
 """Gets singer_id, style_labels and feature_arrays from file_names"""
 class pathSpecDataset(Dataset):
 
     def __init__(self, config, spmel_params):
-        """Initialize and preprocess the dataset."""
+
+        # setup attributes and 
         melsteps_per_second = spmel_params['sr'] / spmel_params['hop_size']
         self.window_size = math.ceil(config.chunk_seconds * melsteps_per_second)
         self.chunk_num = config.chunk_num
@@ -22,6 +20,7 @@ class pathSpecDataset(Dataset):
         fileList = substring_inclusion(fileList, style_names)
         dataset = []
 
+        # iterate through files and save with appropriate labels
         for file_path in fileList:
             spmel = np.load(file_path)
 
@@ -36,9 +35,6 @@ class pathSpecDataset(Dataset):
         self.dataset = dataset
         self.num_specs = len(dataset)
 
-    """__getitem__ selects a speaker and chooses a random subset of data (in this case
-    an utterance) and randomly crops that data. It also selects the corresponding speaker
-    embedding and loads that up. It will now also get corresponding pitch contour for such a file"""
     def __getitem__(self, index):
         # pick a random speaker
         dataset = self.dataset
@@ -52,9 +48,8 @@ class pathSpecDataset(Dataset):
         difference = spmel.shape[0] - desired_spmel_length
         offset = random.randint(0, difference)
         length_adjusted_spmel = spmel[offset : offset + desired_spmel_length]
-        # may need to set chunk_num to constant value so that all tensor sizes are of known shape for the LSTM
-        # a constant will also mean it is easier to group off to be part of the same recording
-        # the smallest is 301 frames. If the window sizes are 44, then that 6 full windows each
+
+        # stack spmel as even chunks
         for i in range(chunk_num):
             offset = i * self.window_size
             if i == 0:
@@ -93,7 +88,6 @@ class audioSnippetDataset(Dataset):
         style_names = ['belt','lip_trill','straight','vocal_fry','vibrato','breathy']
         singer_names = ['m1_','m2_','m3_','m4_','m5_','m6_','m7_','m8_','m9_','m10_','m11_','f1_','f2_','f3_','f4_','f5_','f6_','f7_','f8_','f9_']
         dataset = []
-        #self.one_hot_array = np.eye(len(class_names))[np.arange(len(class_names))]
         filtered_audio_path_list = pickle.load(open(self.audio_paths_file, 'rb')) 
         sorted_filtered_audio_path_list = sorted(filtered_audio_path_list)
         sorted_filtered_audio_file_list = [os.path.basename(x) for x in sorted_filtered_audio_path_list]

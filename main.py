@@ -5,34 +5,32 @@ import pickle, argparse, yaml, os, csv, sys
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader, SubsetRandomSampler
-sys.path.insert(1, '/homes/bdoc3/my_utils')
-from my_os import recursive_file_retrieval
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config_file', type=str, default='', metavar='N')
-    parser.add_argument('--file_name', type=str, default='defaultName', metavar='N')
+    parser.add_argument('--config_file', type=str, default='', metavar='N', help='Provide path to config file that could be used to superseed user-specified params')
+    parser.add_argument('--file_name', type=str, default='defaultName', metavar='N', help='Make a name for the model your training')
     parser.add_argument('--model', type=str, default='choi_k2c2', help='adjust code to work with Wilkins model and audio not spectrograms')
     parser.add_argument('--batch_size', type=int, default=128, metavar='N', help='input batch size for training (default: 4)')
     parser.add_argument('--lstm_num', type=int, default=2, metavar='N', help='2 if not specified')
-    parser.add_argument('--use_attention', type=str2bool, default=False, help='')
-    parser.add_argument('--is_blstm', type=str2bool, default=True, help='')
+    parser.add_argument('--use_attention', type=str2bool, default=False, help='toggle use of attention mechanism')
+    parser.add_argument('--is_blstm', type=str2bool, default=True, help='boolean for whether lstm or blstm used')
     parser.add_argument('--chunk_num', type=int, default=6, metavar='N', help='chunk_seconds is 23 if not specified')
-    parser.add_argument('--which_cuda', type=int, default=0, metavar='N')
+    parser.add_argument('--which_cuda', type=int, default=0, metavar='N', help='determine which GPU to use')
     parser.add_argument('--epochs', type=int, default=20, metavar='N', help='number of epochs to train (default: 10)')
-    parser.add_argument('--lr', type=float, default=0.0001, metavar='N')
-    parser.add_argument('--seed', type=int, default=1, metavar='N')
-    parser.add_argument('--dropout', type=float, default=0., metavar='N')
+    parser.add_argument('--lr', type=float, default=0.0001, metavar='N', help='learning rate')
+    parser.add_argument('--seed', type=int, default=1, metavar='N', help='randomisation seed')
+    parser.add_argument('--dropout', type=float, default=0., metavar='N', help='amount of dropout')
 
     parser.add_argument('--no_cuda', action='store_true', default=False, help='enables CUDA training')
-    parser.add_argument('--chunk_seconds', type=float, default=0.5, metavar='N', help='chunk_seconds is 0.5 if not specified')
-    parser.add_argument('--ckpt_freq', type=int, default=100, metavar='N')
-    parser.add_argument('--load_ckpt', type=str, default='', metavar='N')
-    parser.add_argument('--reg', type=float, default=0, metavar='N')
-    parser.add_argument('--iteration', type=int, default=1, metavar='N')
-    parser.add_argument('--n_mels', type=int, default=96, metavar='N')
-    parser.add_argument('--data_dir', type=str, default='./example_ds', metavar='N')
-    parser.add_argument('--test_list', type=str, default='', metavar='N')
+    parser.add_argument('--chunk_seconds', type=float, default=0.5, metavar='N', help='duration that input features are truncated to')
+    parser.add_argument('--ckpt_freq', type=int, default=100, metavar='N', help='number of times to make a safety save of the model')
+    parser.add_argument('--load_ckpt', type=str, default='', metavar='N', help='path to previously trained network weights')
+    parser.add_argument('--reg', type=float, default=0, metavar='N', help='determines amount of weight decay for regularisation')
+    parser.add_argument('--iteration', type=int, default=1, metavar='N', help='make this more than one if using random search for ideal h_params')
+    parser.add_argument('--n_mels', type=int, default=96, metavar='N', help='freq dim for features being used')
+    parser.add_argument('--data_dir', type=str, default='./example_ds', metavar='N', help='path to dataset')
+    parser.add_argument('--test_list', type=str, default='', metavar='N', help='if there is a preferred split to use, specify here')
     config = parser.parse_args()
 
     # determine whether to use current or previous config params

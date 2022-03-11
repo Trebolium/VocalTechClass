@@ -158,4 +158,16 @@ def setup_config(config, file_name_dir):
     with open(file_name_dir +'/config_params.pkl','wb') as File:
         pickle.dump(config, File) 
     return string_config, previous_epochs, config
-    
+
+
+# tales a list and returns only those that are in the include_list
+def substring_inclusion(main_list, include_list):
+    filtered_list = [] 
+    for f_path in main_list:
+        inclusion_found = False
+        for inclusion in include_list:
+            if inclusion in f_path:
+                inclusion_found = True
+        if inclusion_found == True: 
+            filtered_list.append(f_path)
+    return filtered_list 
