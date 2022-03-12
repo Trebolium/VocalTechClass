@@ -1,6 +1,7 @@
 import csv, pickle, random, os, json, torch, pdb
 import numpy as np
 import matplotlib.pyplot as plt
+from torch.utils.tensorboard import SummaryWriter
 
 
 # returns a list of filepaths collected from a parent directory and all subdirectories
@@ -33,20 +34,6 @@ def recursive_file_retrieval(parent_path):
 # convert string input into bool
 def str2bool(v):
     return v.lower() in ('true')
-
-
-# generate random splits for singers
-def get_vocalset_splits(this_seed):
-    m_list = ['m1_','m2_','m3_','m4_','m5_','m6_','m7_','m8_','m9_','m10_','m11_']
-    f_list = ['f1_','f2_','f3_','f4_','f5_','f6_','f7_','f8_','f9_']
-    random.seed(this_seed)
-    random.shuffle(m_list)
-    random.shuffle(f_list)
-    train_m_list, test_m_list = (m_list[:-3],m_list[-3:])
-    train_f_list, test_f_list = (f_list[:-2],f_list[-2:])
-    train_list = train_m_list + train_f_list
-    test_list = test_m_list + test_f_list
-    return train_list, test_list
 
 
 # generate random hyperparameters for searching best configurations
@@ -171,3 +158,25 @@ def substring_inclusion(main_list, include_list):
         if inclusion_found == True: 
             filtered_list.append(f_path)
     return filtered_list 
+
+
+# takes a list of substrings and removes any entry the main list that contains these substrings
+def substring_exclusion(main_list, exclude_list):
+    filtered_list = [] 
+    for f_path in main_list:
+        exclusion_found = False
+        for exclusion in exclude_list:
+            if exclusion in f_path:
+                exclusion_found = True
+        if exclusion_found == False: 
+            filtered_list.append(f_path)
+    return filtered_list
+
+
+# create writer and save to specific location on disk
+def determine_writer(file_name):
+    if file_name == 'defaultName' or file_name == 'deletable':
+        writer = SummaryWriter('testRuns/test')
+    else:
+        writer = SummaryWriter(comment = '_' +file_name)
+    return writer

@@ -1,43 +1,25 @@
-import models
+from re import I
 import torch, yaml, pdb
 from torch import optim
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import numpy as np
+from models import determine_model, update_model
+from utils import determine_writer
 
 class VoiceTechniqueClassifier:
     def __init__(self, config):
 
         self.config = config
+        self.final_epoch = config.epochs+1
         self.device = torch.device(f'cuda:{self.config.which_cuda}' if torch.cuda.is_available() else 'cpu')
         self.save_path = './results/' +self.config.file_name +'/best_epoch_checkpoint.pth.tar'
-
-        if config.model == 'wilkins':
-            self.model = models.WilkinsAudioCNN(config)
-        elif config.model == 'choi_k2c2':
-            with open(config.data_dir +'/feat_params.yaml') as File:
-                spmel_params = yaml.load(File, Loader=yaml.FullLoader)
-            self.model = models.Choi_k2c2(config, spmel_params)
-        elif config.model == 'luo':
-            with open(config.data_dir +'/feat_params.yaml') as File:
-                spmel_params = yaml.load(File, Loader=yaml.FullLoader)
-            self.model = models.Luo2019AsIs(config, spmel_params)
-
-        self.optimizer = optim.Adam(self.model.parameters(), lr=config.lr, weight_decay=config.reg)
-
-        # load singing technique classifier model, checkpoint if necessary
-        if self.config.load_ckpt != '':
-            g_checkpoint = torch.load(self.config.load_ckpt)
-            self.model.load_state_dict(g_checkpoint['model_state_dict'])
-            self.optimizer.load_state_dict(g_checkpoint['self.optimizer_state_dict'])
-            for state in self.optimizer.state.values():
-                for k, v in state.items():
-                    if isinstance(v, torch.Tensor):
-                        state[k] = v.cuda(self.config.which_cuda)
-            self.previous_ckpt_iters = g_checkpoint['epoch']
-        else:
-            self.previous_ckpt_iters = 0 
+        model = determine_model(config)
+        self.optimizer = optim.Adam(model.parameters(), lr=config.lr, weight_decay=config.reg)
+        self.previous_ckpt_iters, self.model, self.optimizer = update_model(config, model, self.optimizer)
+        self.writer = determine_writer(config.file_name)
         self.model.to(self.device)
+
 
     # save model checkpoint data
     def save_checkpoints(self, epoch, loss, accuracy):
@@ -52,7 +34,7 @@ class VoiceTechniqueClassifier:
 
 
     # run forward and backward passes for train and test epochs
-    def infer(self, epoch, loader, history_list, writer, examples_per_epoch, mode):
+    def infer(self, epoch, loader, history_list, examples_per_epoch, mode):
 
         def batch_iterate():
 
@@ -109,6 +91,7 @@ class VoiceTechniqueClassifier:
 
             return pred_target_labels, tech_singer_labels, accum_loss, accum_corrects
         
+        
         # main parent block for training and test epochs
         if mode == 'train':
             self.model.train()
@@ -126,16 +109,21 @@ class VoiceTechniqueClassifier:
         # calculate averaged epoch metrics print, save to tensorboard, print, update metric history
         epoch_loss = accum_loss / examples_per_epoch
         epoch_accuracy = accum_corrects / examples_per_epoch
-        writer.add_scalar(f"Accuracy/{mode}", epoch_accuracy, epoch)
-        writer.add_scalar(f"Loss/{mode}", epoch_loss, epoch)
+        self.writer.add_scalar(f"Accuracy/{mode}", epoch_accuracy, epoch)
+        self.writer.add_scalar(f"Loss/{mode}", epoch_loss, epoch)
         print('\nEpoch {} Loss: {:.4f}, Acc: {:.4f} Corrects:{:.4f}'.format(epoch, epoch_loss, epoch_accuracy, accum_corrects))
         loss_hist.append(epoch_loss)
         acc_hist.append(epoch_accuracy)
 
         # save model if best accuracy
-        if mode == 'test' and epoch_accuracy > best_acc:
-            best_acc = epoch_accuracy
-            self.save_checkpoints(epoch, epoch_loss, epoch_accuracy)
+        if mode == 'test':
+            self.writer.flush()
+            if epoch_accuracy > best_acc:
+                best_acc = epoch_accuracy
+                self.save_checkpoints(epoch, epoch_loss, epoch_accuracy)
+
+        if epoch >= self.final_epoch:
+            self.writer.close()
 
         return pred_target_labels, tech_singer_labels
 

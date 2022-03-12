@@ -1,4 +1,4 @@
-import torch, math, pdb
+import torch, math, yaml, pdb
 import torch.nn as nn
 
 #remove this comment
@@ -374,3 +374,30 @@ class WilkinsAudioCNN(nn.Module):
 def my_loss_function(prediction, target):
     loss = F.cross_entropy(prediction, target)
     return loss
+
+def determine_model(config):
+    if config.model == 'wilkins':
+        model = WilkinsAudioCNN(config)
+    else:
+        with open(config.data_dir +'/feat_params.yaml') as File:
+            spmel_params = yaml.load(File, Loader=yaml.FullLoader)
+        if config.model == 'choi_k2c2': model = Choi_k2c2(config, spmel_params)
+        elif config.model == 'luo': model = Luo2019AsIs(config, spmel_params)
+        else: raise ValueError('Model indicator not recognised.')
+    return model
+
+
+# Update model with pretrained params if using ckpt, else return basics
+def update_model(config, model, optimizer):
+    if config.load_ckpt != '':
+        g_checkpoint = torch.load(config.load_ckpt)
+        model.load_state_dict(g_checkpoint['model_state_dict'])
+        optimizer.load_state_dict(g_checkpoint['self.optimizer_state_dict'])
+        for state in optimizer.state.values():
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.cuda(config.which_cuda)
+        previous_ckpt_iters = g_checkpoint['epoch']
+    else:
+        previous_ckpt_iters = 0
+    return previous_ckpt_iters, model, optimizer
